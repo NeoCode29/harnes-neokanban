@@ -7,10 +7,14 @@ description: "Gunakan pada awal setiap sesi atau task baru untuk menentukan skil
 
 Skill ini adalah protokol kesadaran awal (*meta-skill*) yang dieksekusi sebelum melakukan aksi apapun terhadap permintaan pengguna.
 
-## 1. Aturan Emas (The Golden Rule)
+## 1. Langkah 0: Pulihkan State Sesi (Restore Context)
+- **Selalu baca `docs/HANDOFF.md` di awal setiap percakapan.**
+- Pahami konteks terakhir, branch aktif, dan kartu yang sedang berjalan tanpa perlu bertanya ulang kepada pengguna.
+
+## 2. Aturan Emas (The Golden Rule)
 > **Tentukan dan aktifkan skill yang relevan SEBELUM merespons atau menyentuh kode.**
 
-## 2. Matriks Keputusan & Triage
+## 3. Matriks Keputusan & Triage
 
 | Jenis Permintaan / Situasi | Skill yang Wajib Diaktifkan | Spesialis yang Ditugaskan |
 | :--- | :--- | :--- |
@@ -22,8 +26,5 @@ Skill ini adalah protokol kesadaran awal (*meta-skill*) yang dieksekusi sebelum 
 | Persiapan menyatakan selesai / merge cabang | `verification-before-completion` → `finishing-a-development-branch` | `qa-tester` / Reviewer |
 | Review kode antar agen / masukan reviewer | `code-review-protocol` | Spesialis domain terkait |
 
-## 3. Alur Eksekusi
-1. Evaluasi bobot task (fitur besar vs perbaikan minor).
-2. Baca file panduan skill dan spesialis yang relevan.
-3. Tetapkan isolasi lingkungan (branch / worktree terpisah).
-4. Lakukan pengerjaan secara berurutan sesuai alur 5-tahap harness.
+## 4. Langkah Akhir: Perbarui State Sesi
+- **Selalu perbarui `docs/HANDOFF.md`** setelah menyelesaikan aktivitas penting atau sebelum menutup interaksi.

@@ -1,18 +1,21 @@
 ﻿# Lean Agentic Harness (Antigravity + NeoKanban)
 
-Selamat datang di **Lean Agentic Harness**. Sistem ini dirancang dari nol untuk asisten AI **Antigravity**, memberikan alur kerja pengembangan perangkat lunak yang berdisiplin tinggi, aman, dan efisien dengan integrasi **NeoKanban**, didukung **Superpowers Pipeline Lengkap** dan spesialis desain **UX/UI Pro Max**, tanpa dependensi berat RAG atau database vektor.
+Selamat datang di **Lean Agentic Harness**. Sistem ini dirancang dari nol untuk asisten AI **Antigravity**, memberikan alur kerja pengembangan perangkat lunak yang berdisiplin tinggi, aman, dan efisien dengan integrasi **NeoKanban**, didukung **Superpowers Pipeline Lengkap**, spesialis desain **UX/UI Pro Max**, serta mekanisme kontinuitas sesi otomatis **Living Handoff**, tanpa dependensi berat RAG atau database vektor.
 
 ---
 
 ## 1. Filosofi Inti
 
 1. **Zero Heavy RAG**: Tidak ada database vektor lokal (ChromaDB), script embedding, atau index chunks yang memakan memori. Pemahaman sistem mengandalkan pembacaan langsung codebase dan **Living Context** pada NeoKanban (`architecture.md`, `guidelines.md`).
-2. **Superpowers Discipline**: Mengadopsi prinsip proses Superpowers (triage kesadaran awal, spesifikasi terverifikasi, task bite-sized, isolasi worktree, review 2-tahap, TDD, hingga whole-branch verification).
-3. **NeoKanban sebagai Living Source of Truth**:
+2. **Living Session Handoff (`docs/HANDOFF.md`)**:
+   - **Start of Session**: Agen otomatis membaca `docs/HANDOFF.md` untuk mengetahui konteks terakhir, branch aktif, dan task yang siap dieksekusi tanpa perlu bertanya ulang ke pengguna.
+   - **End of Activity**: Setiap kali aktivitas penting selesai (fitur, bug fix, sprint task), agen wajib memperbarui `docs/HANDOFF.md`.
+3. **Superpowers Discipline**: Mengadopsi prinsip proses Superpowers (triage kesadaran awal, spesifikasi terverifikasi, task bite-sized, isolasi worktree, review 2-tahap, TDD, hingga whole-branch verification).
+4. **NeoKanban sebagai Living Source of Truth**:
    - Papan proyek mencatat status pekerjaan secara visual.
    - Langkah TDD dipetakan menjadi subtask checklist interaktif yang dicentang secara real-time.
-4. **Safe Review Gate (Larangan Auto-Done)**: Agen dilarang keras memindahkan kartu langsung ke `Done`. Setiap penyelesaian tugas wajib diverifikasi manusia setelah melewati kolom `Review` dengan laporan verifikasi terstruktur.
-5. **Spesialisasi Domain Tingkat Lanjut**: Dilengkapi peran spesialis komprehensif, termasuk **UX/UI Pro Max** dengan standar aksesibilitas WCAG AA dan token desain modern.
+5. **Safe Review Gate (Larangan Auto-Done)**: Agen dilarang keras memindahkan kartu langsung ke `Done`. Setiap penyelesaian tugas wajib diverifikasi manusia setelah melewati kolom `Review` dengan laporan verifikasi terstruktur.
+6. **Spesialisasi Domain Tingkat Lanjut**: Dilengkapi peran spesialis komprehensif, termasuk **UX/UI Pro Max** dengan standar aksesibilitas WCAG AA dan token desain modern.
 
 ---
 
@@ -31,61 +34,30 @@ Setiap task di dalam rencana kerja wajib ditugaskan ke salah satu spesialis beri
 
 ---
 
-## 3. Lima Tahapan Pengembangan (The 5-Stage Pipeline)
+## 3. Siklus Hidup Sesi & Pengembangan (Session & Development Lifecycle)
 
 ```
+[Buka Sesi Baru] ──► Baca docs/HANDOFF.md ──► [Triage using-superpowers]
+                                                    │
+      ┌─────────────────────────────────────────────┘
+      ▼
 [1. Brainstorming] ──► [2. Plan Writing] ──► [3. Kanban Sync] ──► [4. TDD & SDD] ──► [5. Safe Review Gate]
    Spec disetujui        Task bite-sized        Publish ke 'To Do'    Branch terisolasi      Pindah ke 'Review'
    di docs/specs/        + checklist TDD        di NeoKanban          Checklist real-time    + Bukti Verifikasi
                                                                                                (Human -> 'Done')
+      │
+      ▼
+[Selesai Aktivitas] ──► Perbarui docs/HANDOFF.md (Status, Bukti Test, & Next Steps)
 ```
 
-### Tahap 1: Brainstorming & Desain Spesifikasi
-- **Skill**: `superpowers:brainstorming`
-- Menggali kebutuhan user, batasan arsitektur, dan membandingkan alternatif solusi.
-- Hasil akhir: File spesifikasi disetujui di `docs/specs/YYYY-MM-DD-<nama-fitur>.md`.
+### Protokol Awal Sesi (Session Start)
+1. Baca `docs/HANDOFF.md`.
+2. Periksa branch aktif dan status kartu di papan NeoKanban.
+3. Tentukan langkah kerja selanjutnya tanpa perlu menanyakan "kemarin sampai mana?" kepada user.
 
-### Tahap 2: Pembuatan Rencana Kerja (Writing Plans)
-- **Skill**: `superpowers:writing-plans`
-- Memecah spesifikasi menjadi task-task kecil (2–5 menit per langkah).
-- Format setiap task wajib memuat:
-  - File target: `Create:`, `Modify:`, `Test:`
-  - Penetapan agen: `**Agent:** <nama-spesialis>` (misal: `ux-ui-pro-max` atau `backend-specialist`)
-  - Langkah TDD bertingkat: `- [ ] **Step 1:...**`
-- Hasil akhir: File rencana di `docs/plans/YYYY-MM-DD-<nama-fitur>.md`.
-
-### Tahap 3: Penerbitan ke NeoKanban (Kanban Sync)
-- Menjalankan perintah sinkronisasi:
-  ```powershell
-  npx tsx scripts/kanban.ts publish docs/plans/YYYY-MM-DD-<nama-fitur>.md [board-id]
-  ```
-- Rencana otomatis terbit menjadi kartu-kartu di kolom **`To Do`** dengan deskripsi lengkap dan checklist TDD.
-- Pemetaan tersimpan di `.kanban-map.json`.
-
-### Tahap 4: Eksekusi TDD & Subagent-Driven Development
-- **Skill**: `superpowers:subagent-driven-development`, `superpowers:using-git-worktrees`, `superpowers:test-driven-development`
-- Buat branch fitur baru (`git checkout -b feat/<fitur>-<card-id>`).
-- Ubah status kartu ke **`In Progress`**:
-  ```powershell
-  npx tsx scripts/kanban.ts start <card-id>
-  ```
-- Subagent spesialis mengeksekusi TDD:
-  - RED: Tulis unit test yang gagal terlebih dahulu.
-  - GREEN: Tulis kode implementasi minimal hingga test lolos.
-  - REFACTOR: Rapikan kode tanpa merusak test.
-- Setiap langkah lolos, centang checklist kartu secara real-time:
-  ```powershell
-  npx tsx scripts/kanban.ts check <card-id> "Step 1"
-  ```
-- Jalankan Two-Stage Review (Spec Compliance & Code Quality).
-
-### Tahap 5: Gerbang Review Aman & Penyelesaian
-- **HARD RULE: DILARANG AUTO-DONE**. Agen **TIDAK BOLEH** memindahkan kartu langsung ke kolom `Done`.
-- Setelah seluruh test suite lolos (100% PASS) dan build bersih (`verification-before-completion`), pindahkan kartu ke **`Review`**:
-  ```powershell
-  npx tsx scripts/kanban.ts review <card-id> --report "### 🧪 Verification Report`n- 10/10 tests pass`n- Build: Exit 0`n- Branch: feat/..."
-  ```
-- Pemilik proyek/manusia mereview branch (`finishing-a-development-branch`), menyetujui merge ke branch utama (`main`/`master`), lalu memindahkan kartu ke **`Done`**.
+### Protokol Akhir Aktivitas (Activity End)
+1. Jalankan verifikasi test (`npm test`) dan build.
+2. Perbarui `docs/HANDOFF.md` dengan ringkasan perubahan, status kartu terkini, dan langkah berikutnya.
 
 ---
 
