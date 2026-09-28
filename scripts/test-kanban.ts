@@ -1,5 +1,5 @@
 ﻿import assert from "node:assert";
-import { parsePlanMarkdown } from "./kanban.js";
+import { parsePlanMarkdown, formatHandoffSession } from "./kanban.js";
 
 const sampleMarkdown = `
 # Authentication & Session Module Implementation Plan
@@ -68,5 +68,26 @@ assert.strictEqual(task2.taskNumber, 2);
 assert.strictEqual(task2.taskTitle, "Implement Protected Route Middleware");
 assert.strictEqual(task2.priority, "MEDIUM");
 assert.strictEqual(task2.steps.length, 3);
+
+console.log("🧪 Testing formatHandoffSession()...");
+const formattedHandoff = formatHandoffSession({
+  sessionName: "setup-auth-module",
+  summary: "Berhasil mengimplementasikan JWT token service dan middleware auth.",
+  branch: "feat/auth-module",
+  tasksStatus: {
+    todo: ["Task 3"],
+    inProgress: ["Task 2"],
+    review: ["Task 1"],
+    done: ["Task 0"],
+  },
+  testsStatus: "8/8 unit tests pass (100%)",
+  nextSteps: ["Lanjutkan pengujian integration test route.", "Submit PR untuk review."],
+});
+
+assert.ok(formattedHandoff.includes("SESI:"), "Should include session header");
+assert.ok(formattedHandoff.includes("setup-auth-module"), "Should include session name");
+assert.ok(formattedHandoff.includes("feat/auth-module"), "Should include branch name");
+assert.ok(formattedHandoff.includes("═════"), "Should include clear visual session dividers");
+assert.ok(formattedHandoff.includes("8/8 unit tests pass"), "Should include test status");
 
 console.log("✅ All test assertions passed successfully!");

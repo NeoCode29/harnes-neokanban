@@ -133,6 +133,53 @@ export function parsePlanMarkdown(content: string): ParsedPlan {
 }
 
 /**
+ * Formats a clean session block with distinctive delimiters
+ */
+export function formatHandoffSession(options: {
+  sessionName: string;
+  summary: string;
+  branch?: string;
+  tasksStatus?: { todo?: string[]; inProgress?: string[]; review?: string[]; done?: string[] };
+  testsStatus?: string;
+  nextSteps?: string[];
+  timestamp?: string;
+}): string {
+  const ts = options.timestamp || new Date().toISOString().replace("T", " ").slice(0, 16);
+  const branch = options.branch || "master";
+  const divider = "═".repeat(75);
+
+  let out = `${divider}\n## 🏁 SESI: [${ts}] — ${options.sessionName}\n${divider}\n`;
+  out += `- **Operator / Agent:** Antigravity\n`;
+  out += `- **Branch Aktif:** \`${branch}\`\n`;
+  out += `- **Waktu Pencatatan:** ${ts}\n\n`;
+
+  out += `### 📌 Ringkasan Aktivitas Terakhir\n${options.summary.trim()}\n\n`;
+
+  if (options.tasksStatus) {
+    out += `### 📋 Status Kartu & NeoKanban\n`;
+    out += `- **To Do:** ${options.tasksStatus.todo?.length ? options.tasksStatus.todo.join(", ") : "-"}\n`;
+    out += `- **In Progress:** ${options.tasksStatus.inProgress?.length ? options.tasksStatus.inProgress.join(", ") : "-"}\n`;
+    out += `- **Review:** ${options.tasksStatus.review?.length ? options.tasksStatus.review.join(", ") : "-"}\n`;
+    out += `- **Done:** ${options.tasksStatus.done?.length ? options.tasksStatus.done.join(", ") : "-"}\n\n`;
+  }
+
+  if (options.testsStatus) {
+    out += `### 🧪 Verifikasi Kualitas & Test\n${options.testsStatus.trim()}\n\n`;
+  }
+
+  if (options.nextSteps && options.nextSteps.length > 0) {
+    out += `### 🚀 Langkah Kerja Berikutnya (Next Actionable Steps)\n`;
+    for (let i = 0; i < options.nextSteps.length; i++) {
+      out += `${i + 1}. ${options.nextSteps[i]}\n`;
+    }
+    out += `\n`;
+  }
+
+  out += `${divider}`;
+  return out;
+}
+
+/**
  * Helper to call NeoKanban REST API
  */
 async function kanbanApi<T>(
@@ -167,6 +214,112 @@ async function kanbanApi<T>(
   }
 
   return response.json() as Promise<T>;
+}
+
+/**
+ * Saves dedicated handoff file, updates main docs/HANDOFF.md, and syncs to NeoKanban Living Context
+ */
+export async function saveHandoff(
+  sessionName: string,
+  options: {
+    summary?: string;
+    content?: string;
+    boardId?: string;
+    apiUrl?: string;
+    token?: string;
+    nextSteps?: string[];
+  } = {}
+): Promise<{ fileName: string; filePath: string }> {
+  const cleanSlug = sessionName
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_.-]/g, "-")
+    .replace(/^-+|-+$/g, "");
+  const fileName = `handoff-${cleanSlug}.md`;
+
+  const handoffsDir = path.resolve(process.cwd(), "docs/handoffs");
+  if (!fs.existsSync(handoffsDir)) {
+    fs.mkdirSync(handoffsDir, { recursive: true });
+  }
+
+  const sessionContent =
+    options.content ||
+    formatHandoffSession({
+      sessionName,
+      summary: options.summary || "Aktivitas sesi kerja diselesaikan.",
+      nextSteps: options.nextSteps || ["Lanjutkan task berikutnya dari NeoKanban / Implementation Plan."],
+    });
+
+  // 1. Write dedicated session file: docs/handoffs/handoff-<nama-sendiri>.md
+  const filePath = path.join(handoffsDir, fileName);
+  fs.writeFileSync(filePath, sessionContent.trim() + "\n", "utf-8");
+  console.log(`💾 Saved dedicated handoff file: ${filePath}`);
+
+  // 2. Prepend/update in main docs/HANDOFF.md with clear session boundary
+  const mainHandoffPath = path.resolve(process.cwd(), "docs/HANDOFF.md");
+  let mainContent = "";
+  if (fs.existsSync(mainHandoffPath)) {
+    mainContent = fs.readFileSync(mainHandoffPath, "utf-8");
+  }
+
+  const headerRegex = /^#\s+Living\s+Session\s+Handoff[\s\S]*?(?=\n═{10,}|\n##\s+🏁|\n##\s+1\.|$)/i;
+  const headerMatch = mainContent.match(headerRegex);
+  const header = headerMatch
+    ? headerMatch[0].trim()
+    : `# Living Session Handoff\n\n> Dokumen ini adalah **Living Source of Truth** status pengerjaan yang **wajib dibaca di awal setiap sesi baru** dan **wajib diperbarui setiap kali menyelesaikan aktivitas**.`;
+
+  const remainingHistory = mainContent.replace(headerRegex, "").trim();
+  const updatedMain = `${header}\n\n${sessionContent.trim()}\n\n${remainingHistory ? remainingHistory + "\n" : ""}`;
+  fs.writeFileSync(mainHandoffPath, updatedMain, "utf-8");
+  console.log(`📝 Updated living handoff: ${mainHandoffPath}`);
+
+  // 3. Sync to NeoKanban Board Context if server available
+  try {
+    let boardId = options.boardId;
+    if (!boardId) {
+      const boardsData = await kanbanApi<{ boards: any[] }>("/api/boards", options);
+      const boards = boardsData.boards || [];
+      if (boards.length > 0) {
+        boardId = boards[0].id;
+      }
+    }
+
+    if (boardId) {
+      console.log(`🔄 Syncing "${fileName}" to NeoKanban board context [${boardId}]...`);
+      const contextRes = await kanbanApi<any>(`/api/boards/${boardId}/context`, options);
+      const docs: any[] = contextRes.documents || [];
+      const existing = docs.find((d) => d.fileName?.toLowerCase() === fileName.toLowerCase());
+
+      if (existing) {
+        await kanbanApi<any>(`/api/boards/${boardId}/context/${existing.id}`, {
+          ...options,
+          method: "PUT",
+          body: {
+            title: `Handoff: ${sessionName}`,
+            content: sessionContent,
+          },
+        });
+        console.log(`✅ Updated existing context file in NeoKanban: "${fileName}"`);
+      } else {
+        await kanbanApi<any>(`/api/boards/${boardId}/context`, {
+          ...options,
+          method: "POST",
+          body: {
+            title: `Handoff: ${sessionName}`,
+            fileName,
+            content: sessionContent,
+          },
+        });
+        console.log(`✅ Created new context file in NeoKanban: "${fileName}"`);
+      }
+    } else {
+      console.log(`ℹ️ No active NeoKanban board found. File safely stored locally at: docs/handoffs/${fileName}`);
+    }
+  } catch (err: any) {
+    console.log(`⚠️ NeoKanban sync skipped (${err.message || "Server not reachable"}). File is safely stored locally at: docs/handoffs/${fileName}`);
+  }
+
+  return { fileName, filePath };
 }
 
 /**
@@ -426,6 +579,16 @@ if (isMain) {
           ? process.argv[reportIdx + 1]
           : "Verification tests passed 100%.";
       await reviewTask(arg1, report);
+    } else if (command === "handoff") {
+      if (!arg1) {
+        console.error("Usage: kanban handoff <session-name> [--summary <text>] [--steps <comma-separated>]");
+        process.exit(1);
+      }
+      const sumIdx = process.argv.indexOf("--summary");
+      const summary = sumIdx !== -1 && process.argv[sumIdx + 1] ? process.argv[sumIdx + 1] : undefined;
+      const stepsIdx = process.argv.indexOf("--steps");
+      const steps = stepsIdx !== -1 && process.argv[stepsIdx + 1] ? process.argv[stepsIdx + 1].split(",") : undefined;
+      await saveHandoff(arg1, { summary, nextSteps: steps });
     } else {
       console.log("\n⚡ Lean NeoKanban Sync CLI");
       console.log("Commands:");
@@ -433,6 +596,7 @@ if (isMain) {
       console.log("  start <cardId>                   Move card to 'In Progress'");
       console.log("  check <cardId> <stepPattern>     Mark TDD checklist step completed");
       console.log("  review <cardId> [--report text]  Move card to 'Review' + attach proof");
+      console.log("  handoff <sessionName>            Save handoff-[nama].md & sync to NeoKanban");
       console.log("\nHard Rule: Auto-Done is strictly prohibited. Final Done requires human review.\n");
     }
   }
