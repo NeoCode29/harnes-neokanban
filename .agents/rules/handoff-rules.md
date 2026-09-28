@@ -1,54 +1,37 @@
-﻿# Aturan Living Handoff & Pembatas Sesi (Handoff Protocol Rules)
+﻿# Aturan Living Handoff Harian & Pembaruan Berkala (Periodic Handoff Protocol)
 
-Dokumen `docs/HANDOFF.md` dan arsip `docs/handoffs/handoff-[nama-sendiri].md` adalah jembatan memori antar-sesi bagi asisten AI Antigravity. Sistem ini menjamin kontinuitas pengerjaan tanpa kehilangan jejak progres.
-
----
-
-## 1. Aturan Pembatas Sesi (Explicit Session Boundary)
-Setiap pencatatan sesi **WAJIB** dipisahkan oleh pembatas visual yang jelas dan terstandarisasi:
-
-```markdown
-═══════════════════════════════════════════════════════════════════════════
-## 🏁 SESI: [YYYY-MM-DD HH:mm] — <nama-sesi>
-═══════════════════════════════════════════════════════════════════════════
-- **Operator / Agent:** Antigravity (<spesialis>)
-- **Branch Aktif:** `<branch>`
-- **Waktu Pencatatan:** YYYY-MM-DD HH:mm
-
-### 📌 Ringkasan Aktivitas Terakhir
-[Poin-poin spesifik apa yang telah diselesaikan]
-
-### 📋 Status Kartu & NeoKanban
-- **To Do:** ...
-- **In Progress:** ...
-- **Review:** ...
-- **Done:** ...
-
-### 🧪 Verifikasi Kualitas & Test
-- Unit tests: [X/X passed]
-- Build status: [Exit 0]
-
-### 🚀 Langkah Kerja Berikutnya (Next Actionable Steps)
-1. [Langkah konkret pertama saat sesi baru dimulai]
-2. [Langkah kedua]
-═══════════════════════════════════════════════════════════════════════════
-```
+Dokumen `docs/HANDOFF.md` dan arsip harian `docs/handoffs/YYYY-MM-DD/handoff-[nama-sendiri].md` adalah jembatan memori aktif bagi asisten AI Antigravity. Sistem ini menjamin kontinuitas pengerjaan secara berkala tanpa kehilangan jejak progres sedikit pun.
 
 ---
 
-## 2. Penyimpanan `handoff-[nama-sendiri]` di NeoKanban & Lokal
-Setiap kali sesi diselesaikan:
-1. **Penyimpanan Lokal Mandiri**:
-   - Berkas disimpan di `docs/handoffs/handoff-<nama-sendiri>.md` (misal: `handoff-auth-jwt.md`, `handoff-checkout-feature.md`).
-2. **Penyimpanan di NeoKanban (Living Context)**:
-   - Berkas handoff disinkronkan langsung ke papan NeoKanban aktif menggunakan MCP tool `update_board_context` atau CLI helper:
-     ```powershell
-     npx tsx scripts/kanban.ts handoff <nama-sendiri> --summary "..."
-     ```
-   - Di papan NeoKanban, berkas akan tersimpan sebagai context document bernama **`handoff-<nama-sendiri>.md`**, sehingga dapat langsung dibaca dan diakses oleh agen maupun pemilik proyek di antarmuka kanban.
+## 1. Penyimpanan Lokal Terstruktur Per Hari (Daily Folder Archive)
+- Setiap berkas sesi mandiri disimpan di direktori bertanggal sesuai hari eksekusi:
+  📂 **`docs/handoffs/YYYY-MM-DD/handoff-<nama-sendiri>.md`**
+  *(Contoh: `docs/handoffs/2026-09-28/handoff-init-harness.md`, `docs/handoffs/2026-09-28/handoff-auth-jwt.md`)*.
+- Berkas utama **`docs/HANDOFF.md`** di root folder `docs/` selalu menyimpan blok konteks sesi paling mutakhir di posisi paling atas dengan pembatas visual yang tegas (`═════════════════════`).
 
 ---
 
-## 3. Protokol Membaca Saat Sesi Baru Dimulai (Session Start Rule)
+## 2. Pembaruan Berkala pada Setiap Aktivitas (Continuous Periodic Updates)
+Antigravity dan CLI helper **WAJIB** memperbarui handoff secara berkala pada setiap siklus aktivitas:
+1. **Saat Menerbitkan Plan (`publish`)**:
+   - Catat task baru yang masuk ke kolom `To Do`.
+2. **Saat Memulai Task (`start`)**:
+   - Catat branch fitur yang dibuat dan kartu yang berpindah ke `In Progress`.
+3. **Saat Verifikasi Selesai (`review`)**:
+   - Catat bukti eksekusi test (100% PASS), commit git, dan perpindahan kartu ke kolom `Review`.
+4. **Saat Penutupan Sesi / Selesai Sprint**:
+   - Perbarui ringkasan keseluruhan dan siapkan poin *Next Actionable Steps*.
+
+---
+
+## 3. Penyelarasan Ganda (Dual-Sync: Lokal + NeoKanban)
+Setiap kali handoff diperbarui:
+1. **Di Lokal**: Berkas harian `docs/handoffs/YYYY-MM-DD/handoff-<nama-sendiri>.md` dan `docs/HANDOFF.md` diperbarui.
+2. **Di NeoKanban**: Berkas diunggah/diperbarui langsung ke **Living Context** papan proyek aktif sebagai **`handoff-<nama-sendiri>.md`** (via API atau tool MCP `update_board_context`).
+
+---
+
+## 4. Protokol Membaca Saat Sesi Baru Dimulai (Session Start Rule)
 - Di awal setiap sesi, Antigravity **WAJIB** membaca blok sesi paling atas di `docs/HANDOFF.md` atau berkas context di NeoKanban.
 - Pahami konteks terakhir, branch aktif, dan langsung eksekusi *Next Actionable Steps* tanpa perlu menanyakan "kemarin sampai mana?" kepada pengguna.

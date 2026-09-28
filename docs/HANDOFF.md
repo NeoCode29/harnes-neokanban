@@ -1,35 +1,35 @@
 ﻿# Living Session Handoff
 
-> Dokumen ini adalah **Living Source of Truth** status pengerjaan yang **wajib dibaca di awal setiap sesi baru** dan **wajib diperbarui setiap kali menyelesaikan aktivitas**.
-> Setiap sesi diarsipkan secara mandiri di `docs/handoffs/handoff-<nama-sendiri>.md` dan disinkronkan langsung ke Living Context NeoKanban.
+> Dokumen ini adalah **Living Source of Truth** status pengerjaan yang **wajib dibaca di awal setiap sesi baru** dan **wajib diperbarui secara berkala pada setiap aktivitas**.
+> Setiap sesi diarsipkan per hari di `docs/handoffs/YYYY-MM-DD/handoff-<nama-sendiri>.md` dan disinkronkan langsung ke Living Context NeoKanban.
 
 ═══════════════════════════════════════════════════════════════════════════
-## 🏁 SESI: [2026-09-28 08:45] — enhance-handoff-and-session-boundaries
+## 🏁 SESI: [2026-09-28 08:55] — daily-handoff-and-periodic-sync
 ═══════════════════════════════════════════════════════════════════════════
 - **Operator / Agent:** Antigravity
 - **Branch Aktif:** `master`
-- **Waktu Pencatatan:** 2026-09-28 08:45
+- **Waktu Pencatatan:** 2026-09-28 08:55
 
 ### 📌 Ringkasan Aktivitas Terakhir
-- Mempertegas pembatas visual antar-sesi menggunakan divider `═════════════════════`.
-- Menambahkan fungsionalitas penyimpanan berkas mandiri `docs/handoffs/handoff-[nama-sendiri].md`.
-- Menambahkan subcommand CLI `npx tsx scripts/kanban.ts handoff <nama-sesi>` untuk auto-update dan sinkronisasi ke NeoKanban Living Context board (`fileName: handoff-<nama>.md`).
-- Menyelaraskan seluruh dokumen aturan di `.agents/rules/handoff-rules.md`, `.agents/AGENTS.md`, dan `HARNESS.md`.
+- Menerapkan pengelompokan arsip handoff lokal per hari (`docs/handoffs/YYYY-MM-DD/handoff-<nama-sendiri>.md`).
+- Menambahkan otomasi pembaruan berkala pada setiap momen aktivitas (saat `publish` plan, saat `start` task ke In Progress, dan saat `review` task dengan bukti laporan pengujian).
+- Mengintegrasikan sinkronisasi berkala dua arah: ke berkas lokal per tanggal dan ke Living Context papan NeoKanban.
+- Memperbarui aturan formal di `.agents/rules/handoff-rules.md`, `.agents/AGENTS.md`, dan `HARNESS.md`.
 
 ### 📋 Status Kartu & NeoKanban
 - **To Do:** -
 - **In Progress:** -
 - **Review:** -
-- **Done:** Integrasi pembatas sesi & penyimpanan handoff NeoKanban
+- **Done:** Sistem pengelompokan handoff per hari & sinkronisasi berkala
 
 ### 🧪 Verifikasi Kualitas & Test
 - Unit test suite (`scripts/test-kanban.ts`): ✅ 100% Passed.
-- CLI handoff test: ✅ 100% Passed (menghasilkan berkas `docs/handoffs/handoff-init-harness.md`).
+- CLI handoff test ke folder harian: ✅ 100% Passed (`docs/handoffs/2026-09-28/`).
 
 ### 🚀 Langkah Kerja Berikutnya (Next Actionable Steps)
 1. Sambungkan ke NeoKanban board aktif saat server NeoKanban dijalankan.
 2. Tentukan fitur/proyek baru yang akan dikembangkan menggunakan harness ini.
-3. Jalankan `npx tsx scripts/kanban.ts handoff <nama-fitur>` setiap kali menyelesaikan sprint.
+3. Biarkan harness memperbarui handoff secara berkala otomatis pada setiap aksi kanban (`publish`, `start`, `review`).
 
 ═══════════════════════════════════════════════════════════════════════════
 
@@ -56,7 +56,7 @@
 - **To Do:** -
 - **In Progress:** -
 - **Review:** -
-- **Done:** Inisialisasi arsitektur dasar harness (Commit: `5d32f64`, `2d7a770`)
+- **Done:** Inisialisasi arsitektur dasar harness (Commit: `5d32f64`, `2d7a770`, `9b4abe7`)
 
 ### 🧪 Verifikasi Kualitas & Test
 - Unit Test Suite (`npm test`): ✅ PASSED (100% assertions valid)

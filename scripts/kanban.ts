@@ -217,7 +217,8 @@ async function kanbanApi<T>(
 }
 
 /**
- * Saves dedicated handoff file, updates main docs/HANDOFF.md, and syncs to NeoKanban Living Context
+ * Saves dedicated handoff file per daily folder (docs/handoffs/YYYY-MM-DD/),
+ * updates main docs/HANDOFF.md, and syncs to NeoKanban Living Context
  */
 export async function saveHandoff(
   sessionName: string,
@@ -237,9 +238,10 @@ export async function saveHandoff(
     .replace(/^-+|-+$/g, "");
   const fileName = `handoff-${cleanSlug}.md`;
 
-  const handoffsDir = path.resolve(process.cwd(), "docs/handoffs");
-  if (!fs.existsSync(handoffsDir)) {
-    fs.mkdirSync(handoffsDir, { recursive: true });
+  const dateStr = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+  const dailyHandoffsDir = path.resolve(process.cwd(), `docs/handoffs/${dateStr}`);
+  if (!fs.existsSync(dailyHandoffsDir)) {
+    fs.mkdirSync(dailyHandoffsDir, { recursive: true });
   }
 
   const sessionContent =
@@ -250,10 +252,10 @@ export async function saveHandoff(
       nextSteps: options.nextSteps || ["Lanjutkan task berikutnya dari NeoKanban / Implementation Plan."],
     });
 
-  // 1. Write dedicated session file: docs/handoffs/handoff-<nama-sendiri>.md
-  const filePath = path.join(handoffsDir, fileName);
+  // 1. Write dedicated session file: docs/handoffs/YYYY-MM-DD/handoff-<nama-sendiri>.md
+  const filePath = path.join(dailyHandoffsDir, fileName);
   fs.writeFileSync(filePath, sessionContent.trim() + "\n", "utf-8");
-  console.log(`💾 Saved dedicated handoff file: ${filePath}`);
+  console.log(`💾 Saved daily handoff: ${filePath}`);
 
   // 2. Prepend/update in main docs/HANDOFF.md with clear session boundary
   const mainHandoffPath = path.resolve(process.cwd(), "docs/HANDOFF.md");
@@ -266,7 +268,7 @@ export async function saveHandoff(
   const headerMatch = mainContent.match(headerRegex);
   const header = headerMatch
     ? headerMatch[0].trim()
-    : `# Living Session Handoff\n\n> Dokumen ini adalah **Living Source of Truth** status pengerjaan yang **wajib dibaca di awal setiap sesi baru** dan **wajib diperbarui setiap kali menyelesaikan aktivitas**.`;
+    : `# Living Session Handoff\n\n> Dokumen ini adalah **Living Source of Truth** status pengerjaan yang **wajib dibaca di awal setiap sesi baru** dan **wajib diperbarui setiap kali menyelesaikan aktivitas**.\n> Setiap sesi diarsipkan per hari di \`docs/handoffs/YYYY-MM-DD/handoff-<nama-sendiri>.md\` dan disinkronkan langsung ke Living Context NeoKanban.`;
 
   const remainingHistory = mainContent.replace(headerRegex, "").trim();
   const updatedMain = `${header}\n\n${sessionContent.trim()}\n\n${remainingHistory ? remainingHistory + "\n" : ""}`;
@@ -313,17 +315,17 @@ export async function saveHandoff(
         console.log(`✅ Created new context file in NeoKanban: "${fileName}"`);
       }
     } else {
-      console.log(`ℹ️ No active NeoKanban board found. File safely stored locally at: docs/handoffs/${fileName}`);
+      console.log(`ℹ️ No active NeoKanban board found. File safely stored locally at: docs/handoffs/${dateStr}/${fileName}`);
     }
   } catch (err: any) {
-    console.log(`⚠️ NeoKanban sync skipped (${err.message || "Server not reachable"}). File is safely stored locally at: docs/handoffs/${fileName}`);
+    console.log(`⚠️ NeoKanban sync skipped (${err.message || "Server not reachable"}). File is safely stored locally at: docs/handoffs/${dateStr}/${fileName}`);
   }
 
   return { fileName, filePath };
 }
 
 /**
- * Publish plan to NeoKanban board
+ * Publish plan to NeoKanban board and automatically record activity handoff
  */
 export async function publishPlan(
   planPath: string,
@@ -441,15 +443,36 @@ export async function publishPlan(
   fs.writeFileSync(mapPath, JSON.stringify(ledger, null, 2), "utf-8");
   console.log(`💾 Saved mapping ledger to: ${mapPath}\n`);
 
+  // Periodic automatic handoff on plan publish
+  try {
+    const slug = path.basename(planPath, ".md");
+    await saveHandoff(`publish-${slug}`, {
+      summary: `Penerbitan rencana "${plan.planTitle}" dengan ${plan.tasks.length} task ke kolom To Do papan NeoKanban.`,
+      nextSteps: ["Mulai pengerjaan Task 1 di branch fitur terisolasi."],
+      ...options,
+    });
+  } catch (err: any) {}
+
   return ledger;
 }
 
 /**
- * Move card to 'In Progress'
+ * Move card to 'In Progress' and record activity handoff
  */
-export async function startTask(cardId: string, options: { apiUrl?: string; token?: string } = {}) {
+export async function startTask(
+  cardId: string,
+  options: { apiUrl?: string; token?: string; boardId?: string } = {}
+) {
   await transitionToColumn(cardId, "In Progress", options);
   console.log(`🚀 Task card [${cardId}] marked as In Progress.`);
+
+  try {
+    await saveHandoff(`card-${cardId}-start`, {
+      summary: `Task ${cardId} mulai dikerjakan pada branch fitur terisolasi.`,
+      nextSteps: ["Jalankan siklus TDD (Red -> Green -> Refactor) untuk task ini."],
+      ...options,
+    });
+  } catch (err: any) {}
 }
 
 /**
@@ -481,12 +504,12 @@ export async function checkStep(
 }
 
 /**
- * Move card to 'Review' with verification proof comment (Enforces Safe Review Gate)
+ * Move card to 'Review' with verification proof comment and record activity handoff (Enforces Safe Review Gate)
  */
 export async function reviewTask(
   cardId: string,
   reportContent: string,
-  options: { apiUrl?: string; token?: string } = {}
+  options: { apiUrl?: string; token?: string; boardId?: string } = {}
 ) {
   await transitionToColumn(cardId, "Review", options);
 
@@ -501,6 +524,15 @@ export async function reviewTask(
     },
   });
   console.log(`🛡️ Safe Review Gate: Card moved to [Review] and verification report attached.`);
+
+  // Periodic automatic handoff on review completion
+  try {
+    await saveHandoff(`card-${cardId}-review`, {
+      summary: `Verifikasi task ${cardId} selesai dan kartu dipindahkan ke kolom Review.\nLaporan:\n${reportContent}`,
+      nextSteps: ["Menunggu verifikasi dan persetujuan human developer untuk merge ke branch utama."],
+      ...options,
+    });
+  } catch (err: any) {}
 }
 
 /**
@@ -593,10 +625,10 @@ if (isMain) {
       console.log("\n⚡ Lean NeoKanban Sync CLI");
       console.log("Commands:");
       console.log("  publish <planPath> [boardId]     Publish plan tasks to 'To Do' column");
-      console.log("  start <cardId>                   Move card to 'In Progress'");
+      console.log("  start <cardId>                   Move card to 'In Progress' + log handoff");
       console.log("  check <cardId> <stepPattern>     Mark TDD checklist step completed");
-      console.log("  review <cardId> [--report text]  Move card to 'Review' + attach proof");
-      console.log("  handoff <sessionName>            Save handoff-[nama].md & sync to NeoKanban");
+      console.log("  review <cardId> [--report text]  Move card to 'Review' + attach proof + log handoff");
+      console.log("  handoff <sessionName>            Save handoff to daily folder & sync to NeoKanban");
       console.log("\nHard Rule: Auto-Done is strictly prohibited. Final Done requires human review.\n");
     }
   }
