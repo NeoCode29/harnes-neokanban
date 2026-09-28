@@ -1,4 +1,4 @@
-﻿import fs from "node:fs";
+import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -38,6 +38,44 @@ export interface KanbanMappingLedger {
       status: string;
     }
   >;
+}
+
+export interface ProjectConfig {
+  apiUrl?: string;
+  patToken?: string;
+  boardId?: string;
+  boardTitle?: string;
+  user?: {
+    name?: string;
+    username?: string;
+    role?: string;
+    mentionTag?: string;
+  };
+  initializedAt?: string;
+}
+
+/**
+ * Loads project-level NeoKanban configuration from .neokanban.json
+ */
+export function loadProjectConfig(): ProjectConfig | null {
+  const cfgPath = path.resolve(process.cwd(), ".neokanban.json");
+  if (fs.existsSync(cfgPath)) {
+    try {
+      return JSON.parse(fs.readFileSync(cfgPath, "utf-8"));
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
+/**
+ * Saves project-level NeoKanban configuration to .neokanban.json
+ */
+export function saveProjectConfig(config: ProjectConfig): void {
+  const cfgPath = path.resolve(process.cwd(), ".neokanban.json");
+  fs.writeFileSync(cfgPath, JSON.stringify(config, null, 2), "utf-8");
+  console.log(`💾 Project NeoKanban configuration saved to: ${cfgPath}`);
 }
 
 /**
@@ -191,8 +229,9 @@ async function kanbanApi<T>(
     token?: string;
   } = {}
 ): Promise<T> {
-  const apiUrl = options.apiUrl || process.env.NEOKANBAN_API_URL || "http://localhost:3000";
-  const token = options.token || process.env.NEOKANBAN_PAT;
+  const cfg = loadProjectConfig();
+  const apiUrl = options.apiUrl || process.env.NEOKANBAN_API_URL || cfg?.apiUrl || "http://localhost:3000";
+  const token = options.token || process.env.NEOKANBAN_PAT || cfg?.patToken;
 
   const url = `${apiUrl.replace(/\/$/, "")}${endpoint.startsWith("/") ? "" : "/"}${endpoint}`;
   const headers: Record<string, string> = {
@@ -217,16 +256,165 @@ async function kanbanApi<T>(
 }
 
 /**
+ * Ping / Healthcheck for NeoKanban server
+ */
+export async function pingNeoKanban(options: { apiUrl?: string; token?: string } = {}): Promise<{ ok: boolean; message: string }> {
+  const cfg = loadProjectConfig();
+  const apiUrl = options.apiUrl || process.env.NEOKANBAN_API_URL || cfg?.apiUrl || "http://localhost:3000";
+  const token = options.token || process.env.NEOKANBAN_PAT || cfg?.patToken;
+
+  try {
+    const url = `${apiUrl.replace(/\/$/, "")}/api/boards`;
+    const res = await fetch(url, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+    });
+    if (res.ok) {
+      return { ok: true, message: `Connected successfully to NeoKanban at ${apiUrl}` };
+    }
+    return { ok: false, message: `Server reachable at ${apiUrl} but responded with status [${res.status} ${res.statusText}].` };
+  } catch (err: any) {
+    return { ok: false, message: `Cannot connect to NeoKanban at ${apiUrl}: ${err.message || err}` };
+  }
+}
+
+/**
  * Resolves active board ID from options or fetches first board
  */
 async function resolveBoardId(options: { boardId?: string; apiUrl?: string; token?: string } = {}): Promise<string> {
   if (options.boardId) return options.boardId;
+  const cfg = loadProjectConfig();
+  if (cfg?.boardId) return cfg.boardId;
+
   const boardsData = await kanbanApi<{ boards: any[] }>("/api/boards", options);
   const boards = boardsData.boards || [];
   if (boards.length === 0) {
     throw new Error("No boards found on NeoKanban. Please create a board first.");
   }
   return boards[0].id;
+}
+
+/**
+ * Wizard for Initial Project Setup
+ */
+export async function initProject(options: {
+  apiUrl?: string;
+  patToken?: string;
+  boardId?: string;
+  boardTitle?: string;
+  role?: string;
+  username?: string;
+  offline?: boolean;
+} = {}): Promise<ProjectConfig> {
+  console.log("\n🚀 Initializing First-Time Project Setup for NeoKanban...");
+
+  // 1. Healthcheck / Ping test
+  const ping = await pingNeoKanban(options);
+  if (ping.ok) {
+    console.log(`✅ [Healthcheck Passed] ${ping.message}`);
+  } else {
+    console.log(`⚠️ [Healthcheck Warning] ${ping.message}`);
+    console.log(`💡 Panduan: Pastikan server NeoKanban berjalan di http://localhost:3000 atau gunakan mode offline.`);
+  }
+
+  // 2. Prepare Config
+  const existingCfg = loadProjectConfig() || {};
+  const config: ProjectConfig = {
+    ...existingCfg,
+    apiUrl: options.apiUrl || existingCfg.apiUrl || "http://localhost:3000",
+    patToken: options.patToken || existingCfg.patToken,
+    boardId: options.boardId || existingCfg.boardId,
+    boardTitle: options.boardTitle || existingCfg.boardTitle,
+    user: {
+      name: options.username || existingCfg.user?.name || "Kresna",
+      username: options.username || existingCfg.user?.username || "kresna",
+      role: options.role || existingCfg.user?.role || "all-roles",
+      mentionTag: options.username ? `@${options.username.replace(/^@/, "")}` : (existingCfg.user?.mentionTag || "@kresna"),
+    },
+    initializedAt: new Date().toISOString(),
+  };
+
+  // 3. Connect to board & pull context (if ping passed)
+  if (ping.ok) {
+    try {
+      const boardsData = await kanbanApi<{ boards: any[] }>("/api/boards", {
+        apiUrl: config.apiUrl,
+        token: config.patToken,
+      });
+      const boards = boardsData.boards || [];
+
+      let selectedBoard = boards.find((b) => b.id === config.boardId) || boards[0];
+      if (!selectedBoard && config.boardTitle) {
+        console.log(`📌 Creating new board: "${config.boardTitle}"...`);
+        const newBoardRes = await kanbanApi<any>("/api/boards", {
+          apiUrl: config.apiUrl,
+          token: config.patToken,
+          method: "POST",
+          body: {
+            title: config.boardTitle,
+            description: `Project board initialized for ${path.basename(process.cwd())}`,
+          },
+        });
+        selectedBoard = newBoardRes.board || newBoardRes;
+      }
+
+      if (selectedBoard) {
+        config.boardId = selectedBoard.id;
+        config.boardTitle = selectedBoard.title;
+        console.log(`📌 Linked to NeoKanban Board: "${config.boardTitle}" (ID: ${config.boardId})`);
+
+        // Check context documents
+        const ctxRes = await kanbanApi<any>(`/api/boards/${config.boardId}/context`, {
+          apiUrl: config.apiUrl,
+          token: config.patToken,
+        });
+        const docs: any[] = ctxRes.documents || [];
+        console.log(`📂 Board Context Documents found: ${docs.length}`);
+
+        // Sync or initialize token-design.json
+        const hasTokens = docs.some((d) => d.fileName?.toLowerCase() === "token-design.json");
+        if (hasTokens) {
+          await pullTokens({ boardId: config.boardId, apiUrl: config.apiUrl, token: config.patToken });
+        } else {
+          console.log(`ℹ️ Initializing standard token-design.json on NeoKanban board...`);
+          await pushTokens(undefined, { boardId: config.boardId, apiUrl: config.apiUrl, token: config.patToken });
+        }
+      }
+    } catch (err: any) {
+      console.log(`⚠️ Online board synchronization notice: ${err.message}`);
+    }
+  }
+
+  // 4. Save config file to project directory (.neokanban.json)
+  saveProjectConfig(config);
+
+  // 5. Ensure .neokanban.json is in .gitignore
+  const gitignorePath = path.resolve(process.cwd(), ".gitignore");
+  if (fs.existsSync(gitignorePath)) {
+    const gitignoreContent = fs.readFileSync(gitignorePath, "utf-8");
+    if (!gitignoreContent.includes(".neokanban.json")) {
+      fs.appendFileSync(gitignorePath, "\n.neokanban.json\n", "utf-8");
+      console.log(`🔒 Added .neokanban.json to .gitignore to prevent secret leaks.`);
+    }
+  }
+
+  // 6. Record Initial Living Handoff
+  await saveHandoff("setup-awal", {
+    summary: `Setup awal proyek selesai: Konfigurasi tersimpan di .neokanban.json, role pengguna (${config.user?.role}) dan tag mention (${config.user?.mentionTag}) telah dikonfigurasi.`,
+    nextSteps: [
+      "Periksa atau sesuaikan token design di docs/ui-governance/token-design.json.",
+      "Tentukan fitur pertama yang ingin dikembangkan dan jalankan brainstorming.",
+    ],
+  });
+
+  console.log(`\n🎉 Project Setup Completed Successfully!`);
+  console.log(`👤 Active User: ${config.user?.name} (${config.user?.role}) | Mention: ${config.user?.mentionTag}`);
+  console.log(`📋 Board: ${config.boardTitle || "Offline / Not linked"} (${config.boardId || "N/A"})\n`);
+
+  return config;
 }
 
 /**
@@ -781,7 +969,26 @@ if (isMain) {
   const arg2 = process.argv[4];
 
   async function run() {
-    if (command === "publish") {
+    if (command === "init") {
+      const urlIdx = process.argv.indexOf("--url");
+      const apiUrl = urlIdx !== -1 ? process.argv[urlIdx + 1] : undefined;
+      const tokIdx = process.argv.indexOf("--token");
+      const patToken = tokIdx !== -1 ? process.argv[tokIdx + 1] : undefined;
+      const boardIdx = process.argv.indexOf("--board");
+      const boardId = boardIdx !== -1 ? process.argv[boardIdx + 1] : undefined;
+      const titleIdx = process.argv.indexOf("--title");
+      const boardTitle = titleIdx !== -1 ? process.argv[titleIdx + 1] : undefined;
+      const roleIdx = process.argv.indexOf("--role");
+      const role = roleIdx !== -1 ? process.argv[roleIdx + 1] : undefined;
+      const userIdx = process.argv.indexOf("--username");
+      const username = userIdx !== -1 ? process.argv[userIdx + 1] : undefined;
+      const offline = process.argv.includes("--offline");
+
+      await initProject({ apiUrl, patToken, boardId, boardTitle, role, username, offline });
+    } else if (command === "ping") {
+      const ping = await pingNeoKanban();
+      console.log(ping.ok ? `✅ ${ping.message}` : `❌ ${ping.message}`);
+    } else if (command === "publish") {
       if (!arg1) {
         console.error("Usage: kanban publish <path-to-plan.md> [board-id]");
         process.exit(1);
@@ -841,6 +1048,8 @@ if (isMain) {
     } else {
       console.log("\n⚡ Lean NeoKanban Sync CLI");
       console.log("Commands:");
+      console.log("  init [--url <url>] [--board <id>] First-time project setup & wizard");
+      console.log("  ping                             Ping / healthcheck NeoKanban server");
       console.log("  publish <planPath> [boardId]     Publish plan tasks to 'To Do' column");
       console.log("  start <cardId>                   Move card to 'In Progress' + log handoff");
       console.log("  check <cardId> <stepPattern>     Mark TDD checklist step completed");

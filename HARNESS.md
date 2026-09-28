@@ -1,4 +1,4 @@
-﻿# Lean Agentic Harness (Antigravity + NeoKanban)
+# Lean Agentic Harness (Antigravity + NeoKanban)
 
 Selamat datang di **Lean Agentic Harness**. Sistem ini dirancang dari nol untuk asisten AI **Antigravity**, memberikan alur kerja pengembangan perangkat lunak yang berdisiplin tinggi, aman, dan efisien dengan integrasi **NeoKanban**, didukung **Superpowers Pipeline Lengkap**, spesialis desain **UX/UI Pro Max**, tata kelola **UI Consistency Governance (Design Tokens & Component Registry)**, kontinuitas sesi **Living Handoff Harian**, serta kebiasaan utama **Deep Pre-Understanding & Interactive Clarification**.
 
@@ -65,6 +65,15 @@ Selamat datang di **Lean Agentic Harness**. Sistem ini dirancang dari nol untuk 
 ## 4. Perintah CLI `scripts/kanban.ts`
 
 ```powershell
+# --- Alur Setup Pertama Kali & Healthcheck ---
+# 0. Uji koneksi ke NeoKanban
+npx tsx scripts/kanban.ts ping
+
+# Inisialisasi proyek dan konfigurasi .neokanban.json
+npx tsx scripts/kanban.ts init --url http://localhost:3000 --username kresna --role all-roles
+# (Atau mode offline jika server NeoKanban belum dinyalakan):
+# npx tsx scripts/kanban.ts init --offline --username kresna --role all-roles
+
 # --- Alur Papan & Task Kanban ---
 # 1. Publish rencana markdown ke papan NeoKanban
 npx tsx scripts/kanban.ts publish docs/plans/2026-09-20-fitur.md

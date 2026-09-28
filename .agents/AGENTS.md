@@ -1,4 +1,4 @@
-﻿# Antigravity Agent Configuration — Lean NeoKanban Harness
+# Antigravity Agent Configuration — Lean NeoKanban Harness
 
 Dokumen ini mendefinisikan aturan operasional, protokol triage, dan inventaris skill terpadu untuk asisten AI Antigravity.
 
@@ -28,9 +28,10 @@ Dokumen ini mendefinisikan aturan operasional, protokol triage, dan inventaris s
 
 ---
 
-## 2. Inventaris Lengkap Skill Terpadu (13 Skills)
+## 2. Inventaris Lengkap Skill Terpadu (14 Skills)
 
 ### A. Perencanaan & Spesifikasi
+- **`superpowers:project-setup`**: Inisialisasi awal koneksi NeoKanban, healthcheck/ping test, mapping role & username mention, inisialisasi context awal, dan pembuatan `.neokanban.json`.
 - **`superpowers:using-superpowers`**: Triage awal dan penentuan skill/spesialis yang tepat (termasuk membaca dan memperbarui handoff).
 - **`superpowers:brainstorming`**: Eksplorasi kebutuhan, pra-pemahaman sistem, klarifikasi interaktif, dan persetujuan spec di `docs/specs/`.
 - **`superpowers:writing-plans`**: Pemecahan task bite-sized (2–5 menit), TDD checklist, dan penugasan tag `**Agent:**`.

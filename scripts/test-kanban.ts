@@ -1,4 +1,4 @@
-﻿import assert from "node:assert";
+import assert from "node:assert";
 import { parsePlanMarkdown, formatHandoffSession } from "./kanban.js";
 
 const sampleMarkdown = `
@@ -89,5 +89,45 @@ assert.ok(formattedHandoff.includes("setup-auth-module"), "Should include sessio
 assert.ok(formattedHandoff.includes("feat/auth-module"), "Should include branch name");
 assert.ok(formattedHandoff.includes("═════"), "Should include clear visual session dividers");
 assert.ok(formattedHandoff.includes("8/8 unit tests pass"), "Should include test status");
+
+console.log("🧪 Testing loadProjectConfig() and saveProjectConfig()...");
+import { pingNeoKanban, loadProjectConfig, saveProjectConfig, initProject } from "./kanban.js";
+import fs from "node:fs";
+import path from "node:path";
+
+const testConfigPath = path.resolve(process.cwd(), ".neokanban.json");
+const backupExists = fs.existsSync(testConfigPath);
+const originalConfig = backupExists ? fs.readFileSync(testConfigPath, "utf-8") : null;
+
+try {
+  saveProjectConfig({
+    apiUrl: "http://localhost:3000",
+    boardId: "test-board-123",
+    boardTitle: "Test Board Title",
+    user: {
+      name: "Kresna",
+      username: "kresna",
+      role: "all-roles",
+      mentionTag: "@kresna",
+    },
+  });
+
+  const loaded = loadProjectConfig();
+  assert.ok(loaded !== null, "Config should load successfully");
+  assert.strictEqual(loaded?.boardId, "test-board-123");
+  assert.strictEqual(loaded?.user?.mentionTag, "@kresna");
+  assert.strictEqual(loaded?.user?.role, "all-roles");
+
+  console.log("🧪 Testing pingNeoKanban() graceful resilience...");
+  const pingResult = await pingNeoKanban({ apiUrl: "http://127.0.0.1:59999" }); // unreachable port
+  assert.strictEqual(typeof pingResult.ok, "boolean");
+  assert.strictEqual(typeof pingResult.message, "string");
+  assert.strictEqual(pingResult.ok, false, "Should return ok=false for unreachable server without crashing");
+
+} finally {
+  if (backupExists && originalConfig !== null) {
+    fs.writeFileSync(testConfigPath, originalConfig, "utf-8");
+  }
+}
 
 console.log("✅ All test assertions passed successfully!");

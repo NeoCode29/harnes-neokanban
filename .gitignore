@@ -3,3 +3,5 @@ dist/
 .kanban-map.json
 .DS_Store
 *.log
+
+.neokanban.json
