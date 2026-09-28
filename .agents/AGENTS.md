@@ -4,22 +4,25 @@ Dokumen ini mendefinisikan aturan operasional, protokol triage, dan inventaris s
 
 ---
 
-## 1. Aturan Emas & Protokol Sesi (Golden Rules)
+## 1. Aturan Emas & Kebiasaan Utama (Golden Rules & Primary Habits)
 
 1. **BACA `docs/HANDOFF.md` DI AWAL SETIAP SESI**:
    - Langkah pertama Antigravity saat menerima instruksi baru adalah membaca `docs/HANDOFF.md` untuk memulihkan state, mengetahui branch aktif, dan langkah lanjutan tanpa bertanya ulang.
-2. **INVOKE SKILL TERKAIT SEBELUM BERTINDAK (`using-superpowers`)**:
+2. **PAHAMI DULU & BERTANYA INTERAKTIF PADA SETIAP REQUEST (`ask_question`)**:
+   - **Deep Pre-Understanding**: Wajib memahami topik/fitur yang diminta secara mendalam terlebih dahulu (telusuri codebase, skema, dan alur sistem) sebelum mengusulkan solusi.
+   - **Zero Information Gaps**: Gunakan tool interaktif `ask_question` dengan opsi-opsi terstruktur untuk mengklarifikasi scope, UX flow, validasi data, dan edge cases sehingga tidak ada celah asumsi.
+3. **INVOKE SKILL TERKAIT SEBELUM BERTINDAK (`using-superpowers`)**:
    - Selalu tentukan dan baca instruksi skill serta spesialis yang relevan sebelum menulis kode atau memberikan analisis teknis.
-3. **LARANGAN AUTO-DONE (NEVER AUTO-DONE)**:
+4. **LARANGAN AUTO-DONE (NEVER AUTO-DONE)**:
    - Subagent **DILARANG KERAS** memindahkan kartu langsung ke kolom `Done`.
    - Kartu yang seluruh langkah TDD-nya selesai wajib dipindahkan ke kolom `Review` dengan laporan verifikasi terstruktur di komentar.
-4. **SPESIALISASI DOMAIN**:
+5. **SPESIALISASI DOMAIN**:
    - Setiap task didelegasikan kepada peran spesialis yang tepat sesuai domain pekerjaannya.
-5. **ISOLASI GIT & TDD**:
+6. **ISOLASI GIT & TDD**:
    - Tidak ada koding langsung di branch utama (`main`/`master`). Selalu buat branch fitur atau worktree baru.
    - Wajib menerapkan siklus Red-Green-Refactor untuk setiap implementasi logic.
-6. **PERBARUI `docs/HANDOFF.md` SETIAP SELESAI AKTIVITAS**:
-   - Setiap kali menyelesaikan task kanban, implementasi fitur, perbaikan bug, atau sebelum sesi berakhir, Antigravity **WAJIB** memperbarui `docs/HANDOFF.md`.
+7. **PERBARUI HANDOFF SECARA BERKALA PADA SETIAP AKTIVITAS**:
+   - Setiap kali terjadi aktivitas (`publish`, `start`, `review`, atau penutupan sesi), perbarui berkas lokal per hari di `docs/handoffs/YYYY-MM-DD/handoff-<nama>.md`, `docs/HANDOFF.md`, dan Living Context di NeoKanban.
 
 ---
 
@@ -27,7 +30,7 @@ Dokumen ini mendefinisikan aturan operasional, protokol triage, dan inventaris s
 
 ### A. Perencanaan & Spesifikasi
 - **`superpowers:using-superpowers`**: Triage awal dan penentuan skill/spesialis yang tepat (termasuk membaca dan memperbarui handoff).
-- **`superpowers:brainstorming`**: Klarifikasi scope, perancangan arsitektur, dan persetujuan spec di `docs/specs/`.
+- **`superpowers:brainstorming`**: Eksplorasi kebutuhan, pra-pemahaman sistem, klarifikasi interaktif, dan persetujuan spec di `docs/specs/`.
 - **`superpowers:writing-plans`**: Pemecahan task bite-sized (2–5 menit), TDD checklist, dan penugasan tag `**Agent:**`.
 
 ### B. Eksekusi & Orkestrasi
@@ -35,7 +38,7 @@ Dokumen ini mendefinisikan aturan operasional, protokol triage, dan inventaris s
 - **`superpowers:dispatching-parallel-agents`**: Eksekusi 2+ task independen secara paralel tanpa konflik file/state.
 - **`superpowers:using-git-worktrees`**: Isolasi ruang kerja dengan git worktree atau feature branch.
 - **`superpowers:test-driven-development`**: Penegakan disiplin RED-GREEN-REFACTOR.
-- **`superpowers:kanban-execution`**: Interaksi dengan NeoKanban MCP & CLI sync (`publish`, `start`, `check`, `review`).
+- **`superpowers:kanban-execution`**: Interaksi dengan NeoKanban MCP & CLI sync (`publish`, `start`, `check`, `review`, `handoff`).
 
 ### C. Review & Penyelesaian
 - **`superpowers:verification-before-completion`**: Verifikasi build dan test suite 100% lulus sebelum mengajukan review.
@@ -59,7 +62,8 @@ Dokumen ini mendefinisikan aturan operasional, protokol triage, dan inventaris s
 ---
 
 ## 4. Aturan Standar (`.agents/rules/`)
-- **`handoff-rules.md`**: Protokol wajib membaca & memperbarui `docs/HANDOFF.md`.
+- **`clarification-rules.md`**: Kebiasaan wajib pemahaman mendalam & pertanyaan interaktif (`ask_question`).
+- **`handoff-rules.md`**: Protokol wajib membaca & memperbarui handoff berkala per tanggal dan ke NeoKanban.
 - **`kanban-workflow-rules.md`**: Aturan transisi kolom, larangan auto-done, dan format laporan verifikasi.
 - **`coding-standards.md`**: Prinsip kode sederhana, minim komentar, dan security-first.
 - **`frontend-styling-rules.md`**: Desain berbasis token, glassmorphism, responsive resilience, dan aksesibilitas.

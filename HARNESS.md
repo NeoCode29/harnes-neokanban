@@ -1,21 +1,24 @@
 ﻿# Lean Agentic Harness (Antigravity + NeoKanban)
 
-Selamat datang di **Lean Agentic Harness**. Sistem ini dirancang dari nol untuk asisten AI **Antigravity**, memberikan alur kerja pengembangan perangkat lunak yang berdisiplin tinggi, aman, dan efisien dengan integrasi **NeoKanban**, didukung **Superpowers Pipeline Lengkap**, spesialis desain **UX/UI Pro Max**, serta mekanisme kontinuitas sesi otomatis **Living Handoff**, tanpa dependensi berat RAG atau database vektor.
+Selamat datang di **Lean Agentic Harness**. Sistem ini dirancang dari nol untuk asisten AI **Antigravity**, memberikan alur kerja pengembangan perangkat lunak yang berdisiplin tinggi, aman, dan efisien dengan integrasi **NeoKanban**, didukung **Superpowers Pipeline Lengkap**, spesialis desain **UX/UI Pro Max**, mekanisme kontinuitas sesi **Living Handoff Harian**, serta kebiasaan utama **Deep Pre-Understanding & Interactive Clarification**.
 
 ---
 
 ## 1. Filosofi Inti
 
-1. **Zero Heavy RAG**: Tidak ada database vektor lokal (ChromaDB), script embedding, atau index chunks yang memakan memori. Pemahaman sistem mengandalkan pembacaan langsung codebase dan **Living Context** pada NeoKanban (`architecture.md`, `guidelines.md`).
-2. **Living Session Handoff (`docs/HANDOFF.md`)**:
+1. **Pahami Dahulu & Bertanya Interaktif (Zero Information Gaps)**:
+   - Setiap kali pengguna meminta suatu topik atau fitur, asisten wajib **memahami arsitektur dan kode secara mendalam terlebih dahulu**.
+   - Sebelum menyusun solusi, asisten wajib mengajukan pertanyaan interaktif terstruktur (`ask_question`) untuk menutup seluruh celah asumsi, memastikan scope, validasi, dan edge cases disepakati bersama.
+2. **Zero Heavy RAG**: Tidak ada database vektor lokal (ChromaDB), script embedding, atau index chunks yang memakan memori. Pemahaman sistem mengandalkan pembacaan langsung codebase dan **Living Context** pada NeoKanban (`architecture.md`, `guidelines.md`).
+3. **Living Session Handoff Harian (`docs/handoffs/YYYY-MM-DD/`)**:
    - **Start of Session**: Agen otomatis membaca `docs/HANDOFF.md` untuk mengetahui konteks terakhir, branch aktif, dan task yang siap dieksekusi tanpa perlu bertanya ulang ke pengguna.
-   - **End of Activity**: Setiap kali aktivitas penting selesai (fitur, bug fix, sprint task), agen wajib memperbarui `docs/HANDOFF.md`.
-3. **Superpowers Discipline**: Mengadopsi prinsip proses Superpowers (triage kesadaran awal, spesifikasi terverifikasi, task bite-sized, isolasi worktree, review 2-tahap, TDD, hingga whole-branch verification).
-4. **NeoKanban sebagai Living Source of Truth**:
+   - **Continuous Periodic Sync**: Setiap aktivitas penting (`publish`, `start`, `review`, atau penutupan sesi) otomatis memperbarui berkas harian lokal dan Living Context di papan NeoKanban.
+4. **Superpowers Discipline**: Mengadopsi prinsip proses Superpowers (triage kesadaran awal, spesifikasi terverifikasi, task bite-sized, isolasi worktree, review 2-tahap, TDD, hingga whole-branch verification).
+5. **NeoKanban sebagai Living Source of Truth**:
    - Papan proyek mencatat status pekerjaan secara visual.
    - Langkah TDD dipetakan menjadi subtask checklist interaktif yang dicentang secara real-time.
-5. **Safe Review Gate (Larangan Auto-Done)**: Agen dilarang keras memindahkan kartu langsung ke `Done`. Setiap penyelesaian tugas wajib diverifikasi manusia setelah melewati kolom `Review` dengan laporan verifikasi terstruktur.
-6. **Spesialisasi Domain Tingkat Lanjut**: Dilengkapi peran spesialis komprehensif, termasuk **UX/UI Pro Max** dengan standar aksesibilitas WCAG AA dan token desain modern.
+6. **Safe Review Gate (Larangan Auto-Done)**: Agen dilarang keras memindahkan kartu langsung ke `Done`. Setiap penyelesaian tugas wajib diverifikasi manusia setelah melewati kolom `Review` dengan laporan verifikasi terstruktur.
+7. **Spesialisasi Domain Tingkat Lanjut**: Dilengkapi peran spesialis komprehensif, termasuk **UX/UI Pro Max** dengan standar aksesibilitas WCAG AA dan token desain modern.
 
 ---
 
@@ -34,30 +37,35 @@ Setiap task di dalam rencana kerja wajib ditugaskan ke salah satu spesialis beri
 
 ---
 
-## 3. Siklus Hidup Sesi & Pengembangan (Session & Development Lifecycle)
+## 3. Siklus Hidup Permintaan & Pengembangan (Request & Development Lifecycle)
 
 ```
-[Buka Sesi Baru] ──► Baca docs/HANDOFF.md ──► [Triage using-superpowers]
-                                                    │
-      ┌─────────────────────────────────────────────┘
-      ▼
-[1. Brainstorming] ──► [2. Plan Writing] ──► [3. Kanban Sync] ──► [4. TDD & SDD] ──► [5. Safe Review Gate]
-   Spec disetujui        Task bite-sized        Publish ke 'To Do'    Branch terisolasi      Pindah ke 'Review'
-   di docs/specs/        + checklist TDD        di NeoKanban          Checklist real-time    + Bukti Verifikasi
-                                                                                               (Human -> 'Done')
+[User Request] 
       │
       ▼
-[Selesai Aktivitas] ──► Perbarui docs/HANDOFF.md (Status, Bukti Test, & Next Steps)
+[Langkah 0: Deep Pre-Understanding] ──► Telusuri kode & arsitektur hingga paham 100%
+      │
+      ▼
+[Langkah 1: Interactive Clarification] ──► ask_question (Opsi konkret, tanpa celah)
+      │
+      ▼
+[Langkah 2: Brainstorming Spec] ──► Susun spesifikasi terstruktur di docs/specs/
+      │
+      ▼
+[Langkah 3: Writing Plans] ──► Pecah task bite-sized + TDD checklist di docs/plans/
+      │
+      ▼
+[Langkah 4: Kanban Sync] ──► Publish ke NeoKanban ('To Do' + checklist)
+      │
+      ▼
+[Langkah 5: TDD & SDD Execution] ──► Branch terisolasi ('In Progress' -> check step)
+      │
+      ▼
+[Langkah 6: Safe Review Gate] ──► Pindah ke 'Review' + Laporan Pengujian (Human -> 'Done')
+      │
+      ▼
+[Otomasi Handoff Berkala] ──► Auto-update ke docs/handoffs/YYYY-MM-DD/ & NeoKanban
 ```
-
-### Protokol Awal Sesi (Session Start)
-1. Baca `docs/HANDOFF.md`.
-2. Periksa branch aktif dan status kartu di papan NeoKanban.
-3. Tentukan langkah kerja selanjutnya tanpa perlu menanyakan "kemarin sampai mana?" kepada user.
-
-### Protokol Akhir Aktivitas (Activity End)
-1. Jalankan verifikasi test (`npm test`) dan build.
-2. Perbarui `docs/HANDOFF.md` dengan ringkasan perubahan, status kartu terkini, dan langkah berikutnya.
 
 ---
 
@@ -67,12 +75,15 @@ Setiap task di dalam rencana kerja wajib ditugaskan ke salah satu spesialis beri
 # 1. Publish rencana markdown ke papan NeoKanban
 npx tsx scripts/kanban.ts publish docs/plans/2026-09-20-fitur.md
 
-# 2. Ubah status kartu menjadi In Progress
+# 2. Ubah status kartu menjadi In Progress (auto-update handoff)
 npx tsx scripts/kanban.ts start <cardId>
 
 # 3. Centang subtask checklist pada kartu
 npx tsx scripts/kanban.ts check <cardId> "Step 1"
 
-# 4. Pindahkan kartu ke kolom Review dengan laporan pengujian
+# 4. Pindahkan kartu ke kolom Review dengan laporan pengujian (auto-update handoff)
 npx tsx scripts/kanban.ts review <cardId> --report "Ringkasan pengujian lolos 100%"
+
+# 5. Catat handoff sesi manual ke folder harian & sync ke NeoKanban
+npx tsx scripts/kanban.ts handoff <nama-sesi> --summary "Ringkasan..."
 ```
