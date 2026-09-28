@@ -11,9 +11,8 @@ Dokumen ini mendefinisikan aturan operasional, protokol triage, dan inventaris s
 2. **PAHAMI DULU & BERTANYA INTERAKTIF PADA SETIAP REQUEST (`ask_question`)**:
    - **Deep Pre-Understanding**: Wajib memahami topik/fitur yang diminta secara mendalam terlebih dahulu (telusuri codebase, skema, dan alur sistem) sebelum mengusulkan solusi.
    - **Zero Information Gaps**: Gunakan tool interaktif `ask_question` dengan opsi-opsi terstruktur untuk mengklarifikasi scope, UX flow, validasi data, dan edge cases sehingga tidak ada celah asumsi.
-3. **KONSISTENSI UI 3 LAPIS & PRIMITIF BAKU (STRICT SHARED PRIMITIVES)**:
-   - Dilarang membuat header/card/filter bar ad-hoc dari nol di halaman. Wajib mengonsumsi komponen primitif terpusat (`<PageHeader>`, `<FilterBar>`, `<DataTable>`, `<EmptyState>`).
-   - Setiap perubahan UI wajib diaudit oleh `ux-ui-pro-max` dengan stempel `### 🎨 UI/UX Consistency Stamp: APPROVED` sebelum kartu boleh masuk kolom `Review`.
+3. **KONSISTENSI UI VIA TOKEN & KOMPONEN REGISTRY**:
+   - Pada task frontend, wajib memeriksa `token-design.json` dan `template-[nama].html` di NeoKanban sebelum membangun UI (`ui-consistency-governance`).
 4. **INVOKE SKILL TERKAIT SEBELUM BERTINDAK (`using-superpowers`)**:
    - Selalu tentukan dan baca instruksi skill serta spesialis yang relevan sebelum menulis kode atau memberikan analisis teknis.
 5. **LARANGAN AUTO-DONE (NEVER AUTO-DONE)**:
@@ -29,33 +28,36 @@ Dokumen ini mendefinisikan aturan operasional, protokol triage, dan inventaris s
 
 ---
 
-## 2. Inventaris Lengkap Skill Terpadu (12 Skills)
+## 2. Inventaris Lengkap Skill Terpadu (13 Skills)
 
 ### A. Perencanaan & Spesifikasi
 - **`superpowers:using-superpowers`**: Triage awal dan penentuan skill/spesialis yang tepat (termasuk membaca dan memperbarui handoff).
 - **`superpowers:brainstorming`**: Eksplorasi kebutuhan, pra-pemahaman sistem, klarifikasi interaktif, dan persetujuan spec di `docs/specs/`.
 - **`superpowers:writing-plans`**: Pemecahan task bite-sized (2–5 menit), TDD checklist, dan penugasan tag `**Agent:**`.
 
-### B. Eksekusi & Orkestrasi
-- **`superpowers:subagent-driven-development`**: Pendelegasian task dengan subagent berkonteks bersih, update checklist real-time, audit konsistensi visual UI, dan two-stage review.
+### B. Tata Kelola Antarmuka (UI Governance)
+- **`superpowers:ui-consistency-governance`**: Pengecekan token design dan registry komponen di NeoKanban sebelum membangun UI untuk mencegah inkonsistensi.
+
+### C. Eksekusi & Orkestrasi
+- **`superpowers:subagent-driven-development`**: Pendelegasian task dengan subagent berkonteks bersih, update checklist real-time, dan two-stage review.
 - **`superpowers:dispatching-parallel-agents`**: Eksekusi 2+ task independen secara paralel tanpa konflik file/state.
 - **`superpowers:using-git-worktrees`**: Isolasi ruang kerja dengan git worktree atau feature branch.
 - **`superpowers:test-driven-development`**: Penegakan disiplin RED-GREEN-REFACTOR.
 - **`superpowers:kanban-execution`**: Interaksi dengan NeoKanban MCP & CLI sync (`publish`, `start`, `check`, `review`, `handoff`).
 
-### C. Review & Penyelesaian
+### D. Review & Penyelesaian
 - **`superpowers:verification-before-completion`**: Verifikasi build dan test suite 100% lulus sebelum mengajukan review.
 - **`superpowers:code-review-protocol`**: Penilaian kualitas kode, objektivitas teknis, dan verifikasi feedback.
 - **`superpowers:finishing-a-development-branch`**: Verifikasi menyeluruh whole-branch, persetujuan merge dari owner, penutupan kartu ke `Done`, branch cleanup, dan update handoff.
 
-### D. Investigasi & Debugging
+### E. Investigasi & Debugging
 - **`superpowers:systematic-debugging`**: 4-fase investigasi akar masalah tanpa menebak-nebak (*no guesswork*).
 
 ---
 
 ## 3. Daftar Spesialis Domain (`.agents/specialists/`)
 
-1. **`ux-ui-pro-max`**: Gatekeeper audit konsistensi visual UI, WCAG AA Accessibility, sistem tipografi, palet semantik, animasi micro-interaction 150–300ms, shadcn/ui.
+1. **`ux-ui-pro-max`**: Desain antarmuka premium, WCAG AA Accessibility, sistem tipografi, palet semantik, animasi micro-interaction 150–300ms, shadcn/ui.
 2. **`frontend-specialist`**: Komponen React/Next.js, Tailwind CSS, component state, formulir interaktif.
 3. **`backend-specialist`**: REST API, Node.js (Express/Fastify), Python (FastAPI), validasi skema, auth/middleware.
 4. **`database-specialist`**: PostgreSQL, Prisma ORM, pemodelan skema relasional, optimasi query, migrasi aman.
@@ -65,7 +67,7 @@ Dokumen ini mendefinisikan aturan operasional, protokol triage, dan inventaris s
 ---
 
 ## 4. Aturan Standar (`.agents/rules/`)
-- **`ui-consistency-rules.md`**: Sistem pertahanan konsistensi UI 3 lapis & komponen primitif wajib.
+- **`ui-consistency-rules.md`**: Protokol wajib token design dan pengecekan komponen NeoKanban.
 - **`clarification-rules.md`**: Kebiasaan wajib pemahaman mendalam & pertanyaan interaktif (`ask_question`).
 - **`handoff-rules.md`**: Protokol wajib membaca & memperbarui handoff berkala per tanggal dan ke NeoKanban.
 - **`kanban-workflow-rules.md`**: Aturan transisi kolom, larangan auto-done, dan format laporan verifikasi.

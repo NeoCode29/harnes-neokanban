@@ -217,6 +217,205 @@ async function kanbanApi<T>(
 }
 
 /**
+ * Resolves active board ID from options or fetches first board
+ */
+async function resolveBoardId(options: { boardId?: string; apiUrl?: string; token?: string } = {}): Promise<string> {
+  if (options.boardId) return options.boardId;
+  const boardsData = await kanbanApi<{ boards: any[] }>("/api/boards", options);
+  const boards = boardsData.boards || [];
+  if (boards.length === 0) {
+    throw new Error("No boards found on NeoKanban. Please create a board first.");
+  }
+  return boards[0].id;
+}
+
+/**
+ * Checks if token-design.json exists on board context
+ */
+export async function checkTokens(
+  options: { boardId?: string; apiUrl?: string; token?: string } = {}
+): Promise<boolean> {
+  try {
+    const boardId = await resolveBoardId(options);
+    const contextRes = await kanbanApi<any>(`/api/boards/${boardId}/context`, options);
+    const docs: any[] = contextRes.documents || [];
+    const found = docs.find((d) => d.fileName?.toLowerCase() === "token-design.json");
+    if (found) {
+      console.log(`✅ Design Tokens found on NeoKanban board [${boardId}]: "token-design.json"`);
+      return true;
+    }
+    console.log(`❌ Design Tokens ("token-design.json") NOT found on NeoKanban board [${boardId}].`);
+    return false;
+  } catch (err: any) {
+    console.log(`⚠️ Unable to check tokens on NeoKanban: ${err.message}`);
+    return false;
+  }
+}
+
+/**
+ * Pulls token-design.json from NeoKanban to local docs/ui-governance/token-design.json
+ */
+export async function pullTokens(
+  options: { boardId?: string; apiUrl?: string; token?: string; targetPath?: string } = {}
+): Promise<string> {
+  const boardId = await resolveBoardId(options);
+  const contextRes = await kanbanApi<any>(`/api/boards/${boardId}/context`, options);
+  const docs: any[] = contextRes.documents || [];
+  const found = docs.find((d) => d.fileName?.toLowerCase() === "token-design.json");
+  if (!found) {
+    throw new Error(`"token-design.json" not found on board ${boardId}. Create it first with tokens:push.`);
+  }
+
+  const targetDir = path.resolve(process.cwd(), "docs/ui-governance");
+  if (!fs.existsSync(targetDir)) {
+    fs.mkdirSync(targetDir, { recursive: true });
+  }
+
+  const targetPath = options.targetPath || path.join(targetDir, "token-design.json");
+  fs.writeFileSync(targetPath, found.content, "utf-8");
+  console.log(`💾 Design Tokens pulled successfully: ${targetPath}`);
+  return targetPath;
+}
+
+/**
+ * Pushes local token-design.json to NeoKanban board context
+ */
+export async function pushTokens(
+  customPath?: string,
+  options: { boardId?: string; apiUrl?: string; token?: string } = {}
+): Promise<void> {
+  const boardId = await resolveBoardId(options);
+  let tokenFile = customPath
+    ? path.resolve(process.cwd(), customPath)
+    : path.resolve(process.cwd(), "docs/ui-governance/token-design.json");
+
+  if (!fs.existsSync(tokenFile)) {
+    tokenFile = path.resolve(process.cwd(), "docs/templates/token-design-template.json");
+  }
+  if (!fs.existsSync(tokenFile)) {
+    throw new Error(`Token design file not found: ${tokenFile}`);
+  }
+
+  const content = fs.readFileSync(tokenFile, "utf-8");
+  JSON.parse(content); // Validate JSON format
+
+  const contextRes = await kanbanApi<any>(`/api/boards/${boardId}/context`, options);
+  const docs: any[] = contextRes.documents || [];
+  const existing = docs.find((d) => d.fileName?.toLowerCase() === "token-design.json");
+
+  if (existing) {
+    await kanbanApi<any>(`/api/boards/${boardId}/context/${existing.id}`, {
+      ...options,
+      method: "PUT",
+      body: {
+        title: "Design Tokens Standard",
+        content,
+      },
+    });
+    console.log(`✅ Updated existing "token-design.json" on NeoKanban board [${boardId}].`);
+  } else {
+    await kanbanApi<any>(`/api/boards/${boardId}/context`, {
+      ...options,
+      method: "POST",
+      body: {
+        title: "Design Tokens Standard",
+        fileName: "token-design.json",
+        content,
+      },
+    });
+    console.log(`✅ Created new "token-design.json" on NeoKanban board [${boardId}].`);
+  }
+}
+
+/**
+ * Checks if component template exists on NeoKanban board context
+ */
+export async function checkComponent(
+  componentName: string,
+  options: { boardId?: string; apiUrl?: string; token?: string; targetDir?: string } = {}
+): Promise<boolean> {
+  const cleanName = componentName
+    .trim()
+    .toLowerCase()
+    .replace(/^template-/, "")
+    .replace(/\.html$/, "")
+    .replace(/[^a-z0-9_-]/g, "-");
+  const fileName = `template-${cleanName}.html`;
+
+  try {
+    const boardId = await resolveBoardId(options);
+    const contextRes = await kanbanApi<any>(`/api/boards/${boardId}/context`, options);
+    const docs: any[] = contextRes.documents || [];
+    const found = docs.find((d) => d.fileName?.toLowerCase() === fileName.toLowerCase());
+
+    if (found) {
+      console.log(`✅ Standard Component found on NeoKanban: "${fileName}"`);
+      const dir = options.targetDir || path.resolve(process.cwd(), "docs/ui-governance/components");
+      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+      const targetPath = path.join(dir, fileName);
+      fs.writeFileSync(targetPath, found.content, "utf-8");
+      console.log(`💾 Downloaded component to: ${targetPath}`);
+      return true;
+    }
+    console.log(`ℹ️ Standard Component "${fileName}" does NOT exist on NeoKanban.`);
+    return false;
+  } catch (err: any) {
+    console.log(`⚠️ Unable to check component on NeoKanban: ${err.message}`);
+    return false;
+  }
+}
+
+/**
+ * Publishes reviewed and approved component template to NeoKanban board context
+ */
+export async function publishComponent(
+  filePath: string,
+  options: { boardId?: string; apiUrl?: string; token?: string } = {}
+): Promise<void> {
+  const fullPath = path.resolve(process.cwd(), filePath);
+  if (!fs.existsSync(fullPath)) {
+    throw new Error(`Component file not found at: ${fullPath}`);
+  }
+
+  const baseName = path.basename(filePath);
+  const cleanName = baseName
+    .toLowerCase()
+    .replace(/^template-/, "")
+    .replace(/\.html$/, "")
+    .replace(/[^a-z0-9_-]/g, "-");
+  const fileName = `template-${cleanName}.html`;
+  const content = fs.readFileSync(fullPath, "utf-8");
+
+  const boardId = await resolveBoardId(options);
+  const contextRes = await kanbanApi<any>(`/api/boards/${boardId}/context`, options);
+  const docs: any[] = contextRes.documents || [];
+  const existing = docs.find((d) => d.fileName?.toLowerCase() === fileName.toLowerCase());
+
+  if (existing) {
+    await kanbanApi<any>(`/api/boards/${boardId}/context/${existing.id}`, {
+      ...options,
+      method: "PUT",
+      body: {
+        title: `Component: ${cleanName}`,
+        content,
+      },
+    });
+    console.log(`✅ Updated existing component template "${fileName}" on NeoKanban.`);
+  } else {
+    await kanbanApi<any>(`/api/boards/${boardId}/context`, {
+      ...options,
+      method: "POST",
+      body: {
+        title: `Component: ${cleanName}`,
+        fileName,
+        content,
+      },
+    });
+    console.log(`✅ Published new component template "${fileName}" to NeoKanban.`);
+  }
+}
+
+/**
  * Saves dedicated handoff file per daily folder (docs/handoffs/YYYY-MM-DD/),
  * updates main docs/HANDOFF.md, and syncs to NeoKanban Living Context
  */
@@ -621,6 +820,24 @@ if (isMain) {
       const stepsIdx = process.argv.indexOf("--steps");
       const steps = stepsIdx !== -1 && process.argv[stepsIdx + 1] ? process.argv[stepsIdx + 1].split(",") : undefined;
       await saveHandoff(arg1, { summary, nextSteps: steps });
+    } else if (command === "tokens:check") {
+      await checkTokens({ boardId: arg1 });
+    } else if (command === "tokens:pull") {
+      await pullTokens({ boardId: arg1 });
+    } else if (command === "tokens:push") {
+      await pushTokens(arg1, { boardId: arg2 });
+    } else if (command === "component:check") {
+      if (!arg1) {
+        console.error("Usage: kanban component:check <componentName> [boardId]");
+        process.exit(1);
+      }
+      await checkComponent(arg1, { boardId: arg2 });
+    } else if (command === "component:publish") {
+      if (!arg1) {
+        console.error("Usage: kanban component:publish <path-to-template.html> [boardId]");
+        process.exit(1);
+      }
+      await publishComponent(arg1, { boardId: arg2 });
     } else {
       console.log("\n⚡ Lean NeoKanban Sync CLI");
       console.log("Commands:");
@@ -629,6 +846,11 @@ if (isMain) {
       console.log("  check <cardId> <stepPattern>     Mark TDD checklist step completed");
       console.log("  review <cardId> [--report text]  Move card to 'Review' + attach proof + log handoff");
       console.log("  handoff <sessionName>            Save handoff to daily folder & sync to NeoKanban");
+      console.log("  tokens:check [boardId]           Check if token-design.json exists on board");
+      console.log("  tokens:pull [boardId]            Pull token-design.json to local directory");
+      console.log("  tokens:push [path] [boardId]     Upload token-design.json to NeoKanban");
+      console.log("  component:check <name> [boardId] Check/fetch template-[name].html from board");
+      console.log("  component:publish <file> [board] Publish template-[name].html to NeoKanban");
       console.log("\nHard Rule: Auto-Done is strictly prohibited. Final Done requires human review.\n");
     }
   }
