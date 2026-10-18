@@ -153,6 +153,20 @@ Foto profil portret bulat/melengkung dengan lencana *pill* emas `GOLD` yang mene
 
 ---
 
+### 12. Charts & Data Visualizations Suite
+Visualisasi data native SVG tanpa dependensi library eksternal (Zero Heavy Dependencies) yang responsif dan selaras dengan palet token semantik:
+- **KPI Sparklines Banner**: Kartu metrik ringkas dengan garis kurva SVG mikro dan persentase tren pergerakan (`+24.8%`).
+- **Area / Line Chart (Velocity Trend)**:
+  - Kurva halus (*smooth cubic bezier*) dengan gradient fill `url(#editorialAreaGrad)` di bawah kurva.
+  - Sumbu horizontal bulan/minggu, garis grid putus-putus (`stroke-dasharray="4 4"`), dan penanda titik data interaktif berlingkar ganda.
+- **Donut Chart (Tasks Breakdown)**:
+  - Lingkaran cincin stroke SVG berputar (`transform -rotate-90`) dengan kalkulasi keliling `stroke-dasharray` untuk membagi proporsi modul (*Frontend 45%, Backend 35%, QA 20%*).
+  - Teks metrik pusat besar (88% Done) dan label legenda semantik di bawahnya.
+- **Weekly Activity Bar Chart**:
+  - Batang vertikal dengan sudut atas melengkung (`rounded-t-xl`), penyorotan batang hari puncak (*highlight current peak*), dan label singkatan hari (*Mon, Tue, Wed, Thu, Fri, Sat, Sun*).
+
+---
+
 ## 4. Standar Operasional Prosedur (SOP Tata Kelola)
 
 Setiap komponen baru yang ditambahkan ke sistem wajib melewati 4 gerbang verifikasi:
@@ -160,8 +174,10 @@ Setiap komponen baru yang ditambahkan ke sistem wajib melewati 4 gerbang verifik
 2. **Aksesibilitas (WCAG AA)**:
    - Rasio kontras teks terhadap latar belakang minimal **4.5:1** (dan 3:1 untuk teks besar).
    - Seluruh elemen interaktif wajib memiliki focus ring yang jelas saat dinavigasi menggunakan tombol `Tab`.
+   - Elemen grafik visualisasi data wajib memiliki atribut `role="img"` dan `aria-label` deskriptif.
 3. **Penyimpanan Template**: Komponen disimpan sebagai berkas modular mandiri di folder `docs/ui-governance/components/template-[nama].html`.
 4. **Registrasi NeoKanban**: Publikasikan ke Living Context NeoKanban menggunakan perintah:
    ```powershell
    npx tsx scripts/kanban.ts component:publish docs/ui-governance/components/template-[nama].html
    ```
+

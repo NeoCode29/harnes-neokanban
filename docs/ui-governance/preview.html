@@ -574,13 +574,215 @@
 
     </div>
 
+    <!-- ================= 11. ANALYTICS & DATA VISUALIZATION SECTION ================= -->
+    <section class="mt-16 pt-10 border-t border-editorial-border dark:border-editorial-borderDark" id="analyticsSection">
+      <div class="flex flex-wrap items-center justify-between gap-4 mb-8">
+        <div>
+          <span class="text-2xs font-mono uppercase tracking-widest text-terracotta font-bold">Analytics & Metrics</span>
+          <h2 class="font-serif text-2xl sm:text-3xl font-semibold text-editorial-text dark:text-stone-100">
+            Charts & Visualizations
+          </h2>
+          <p class="text-xs text-editorial-textMuted dark:text-stone-400 mt-1">
+            Visualisasi data beresolusi SVG responsif sesuai palet warna semantik token.
+          </p>
+        </div>
+        <span class="text-xs px-3 py-1 rounded-full bg-editorial-cream dark:bg-stone-800 text-stone-600 dark:text-stone-300 font-mono">
+          SVG Native • Zero Dep
+        </span>
+      </div>
+
+      <!-- KPI Sparklines Banner -->
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+        <!-- Stat Card 1 -->
+        <div class="p-5 rounded-3xl bg-editorial-card dark:bg-editorial-cardDark border border-editorial-border dark:border-editorial-borderDark shadow-editorial-sm flex flex-col justify-between">
+          <div class="flex items-center justify-between text-xs text-stone-500 dark:text-stone-400">
+            <span class="font-medium uppercase tracking-wider">Revenue Growth</span>
+            <span class="px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 font-semibold text-2xs">+24.8%</span>
+          </div>
+          <div class="my-3 flex items-baseline gap-2">
+            <span class="text-2xl sm:text-3xl font-bold font-serif text-stone-900 dark:text-stone-100">$84,250</span>
+            <span class="text-xs text-stone-400 font-mono">USD</span>
+          </div>
+          <svg class="w-full h-8 overflow-visible" viewBox="0 0 100 25" preserveAspectRatio="none" aria-hidden="true">
+            <path d="M0,20 Q15,8 30,16 T60,6 T85,10 T100,2" fill="none" stroke="#E25822" stroke-width="2.5" stroke-linecap="round"/>
+          </svg>
+        </div>
+
+        <!-- Stat Card 2 -->
+        <div class="p-5 rounded-3xl bg-editorial-card dark:bg-editorial-cardDark border border-editorial-border dark:border-editorial-borderDark shadow-editorial-sm flex flex-col justify-between">
+          <div class="flex items-center justify-between text-xs text-stone-500 dark:text-stone-400">
+            <span class="font-medium uppercase tracking-wider">Active Clients</span>
+            <span class="px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 font-semibold text-2xs">+12.4%</span>
+          </div>
+          <div class="my-3 flex items-baseline gap-2">
+            <span class="text-2xl sm:text-3xl font-bold font-serif text-stone-900 dark:text-stone-100">1,420</span>
+            <span class="text-xs text-stone-400 font-mono">users</span>
+          </div>
+          <svg class="w-full h-8 overflow-visible" viewBox="0 0 100 25" preserveAspectRatio="none" aria-hidden="true">
+            <path d="M0,18 Q20,22 40,12 T70,14 T100,4" fill="none" stroke="#1C1917" stroke-width="2.5" stroke-linecap="round" class="dark:stroke-stone-200"/>
+          </svg>
+        </div>
+
+        <!-- Stat Card 3 -->
+        <div class="p-5 rounded-3xl bg-editorial-card dark:bg-editorial-cardDark border border-editorial-border dark:border-editorial-borderDark shadow-editorial-sm flex flex-col justify-between">
+          <div class="flex items-center justify-between text-xs text-stone-500 dark:text-stone-400">
+            <span class="font-medium uppercase tracking-wider">Sprint Velocity</span>
+            <span class="px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 font-semibold text-2xs">94% Goal</span>
+          </div>
+          <div class="my-3 flex items-baseline gap-2">
+            <span class="text-2xl sm:text-3xl font-bold font-serif text-stone-900 dark:text-stone-100">68</span>
+            <span class="text-xs text-stone-400 font-mono">pts/wk</span>
+          </div>
+          <svg class="w-full h-8 overflow-visible" viewBox="0 0 100 25" preserveAspectRatio="none" aria-hidden="true">
+            <path d="M0,15 Q25,5 50,18 T80,8 T100,10" fill="none" stroke="#EAB308" stroke-width="2.5" stroke-linecap="round"/>
+          </svg>
+        </div>
+      </div>
+
+      <!-- Area Chart & Donut Chart Grid -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-6">
+        
+        <!-- Area Chart (Span 2) -->
+        <div class="lg:col-span-2 p-6 rounded-3xl bg-editorial-card dark:bg-editorial-cardDark border border-editorial-border dark:border-editorial-borderDark shadow-editorial-sm">
+          <div class="flex flex-wrap items-center justify-between gap-4 mb-6">
+            <div>
+              <h3 class="font-serif text-base font-semibold text-stone-900 dark:text-stone-100">Project Velocity Trend</h3>
+              <p class="text-xs text-editorial-textMuted dark:text-stone-400">Poin pekerjaan terselesaikan 6 bulan terakhir</p>
+            </div>
+            <div class="inline-flex p-1 rounded-full bg-editorial-cream dark:bg-stone-800 text-xs">
+              <button class="px-3 py-1 rounded-full bg-stone-900 text-white font-medium">Monthly</button>
+              <button class="px-3 py-1 rounded-full text-stone-600 dark:text-stone-400 hover:text-stone-900">Weekly</button>
+            </div>
+          </div>
+
+          <div class="relative w-full h-56">
+            <svg class="w-full h-full overflow-visible" viewBox="0 0 500 200" preserveAspectRatio="none" role="img" aria-label="Grafik tren performa bulanan">
+              <defs>
+                <linearGradient id="editorialAreaGradPreview" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#E25822" stop-opacity="0.3"/>
+                  <stop offset="100%" stop-color="#E25822" stop-opacity="0.0"/>
+                </linearGradient>
+              </defs>
+              <line x1="0" y1="40" x2="500" y2="40" stroke="#EAE6DF" stroke-dasharray="4 4" class="dark:stroke-stone-800"/>
+              <line x1="0" y1="90" x2="500" y2="90" stroke="#EAE6DF" stroke-dasharray="4 4" class="dark:stroke-stone-800"/>
+              <line x1="0" y1="140" x2="500" y2="140" stroke="#EAE6DF" stroke-dasharray="4 4" class="dark:stroke-stone-800"/>
+              <line x1="0" y1="190" x2="500" y2="190" stroke="#EAE6DF" class="dark:stroke-stone-800"/>
+              <path d="M0,150 C80,140 120,60 200,90 C280,120 330,40 400,60 C450,75 480,25 500,30 L500,190 L0,190 Z" fill="url(#editorialAreaGradPreview)"/>
+              <path d="M0,150 C80,140 120,60 200,90 C280,120 330,40 400,60 C450,75 480,25 500,30" fill="none" stroke="#E25822" stroke-width="3" stroke-linecap="round"/>
+              <circle cx="200" cy="90" r="5" fill="#FAF8F5" stroke="#E25822" stroke-width="3" class="hover:r-7 transition-all cursor-pointer"/>
+              <circle cx="400" cy="60" r="5" fill="#FAF8F5" stroke="#E25822" stroke-width="3" class="hover:r-7 transition-all cursor-pointer"/>
+              <circle cx="500" cy="30" r="6" fill="#1C1917" stroke="#FAF8F5" stroke-width="3" class="hover:r-8 transition-all cursor-pointer dark:fill-stone-100 dark:stroke-stone-900"/>
+            </svg>
+            <div class="absolute top-2 right-2 px-2.5 py-1 rounded-lg bg-stone-900 text-white text-2xs font-mono shadow-md pointer-events-none">
+              Peak: 96 Pts
+            </div>
+          </div>
+
+          <div class="flex justify-between text-xs font-mono text-stone-400 mt-3 pt-2 border-t border-editorial-border dark:border-stone-800">
+            <span>Jan</span><span>Feb</span><span>Mar</span><span>Apr</span><span>May</span><span>Jun</span>
+          </div>
+        </div>
+
+        <!-- Donut Chart & Legend (Span 1) -->
+        <div class="p-6 rounded-3xl bg-editorial-card dark:bg-editorial-cardDark border border-editorial-border dark:border-editorial-borderDark shadow-editorial-sm flex flex-col justify-between">
+          <div>
+            <h3 class="font-serif text-base font-semibold text-stone-900 dark:text-stone-100">Tasks Breakdown</h3>
+            <p class="text-xs text-editorial-textMuted dark:text-stone-400">Alokasi modul pengerjaan</p>
+          </div>
+
+          <div class="relative flex items-center justify-center my-4">
+            <svg class="w-36 h-36 transform -rotate-90" viewBox="0 0 100 100" aria-label="Grafik alokasi modul">
+              <circle cx="50" cy="50" r="40" fill="transparent" stroke="#EFECE6" stroke-width="12" class="dark:stroke-stone-800"/>
+              <circle cx="50" cy="50" r="40" fill="transparent" stroke="#E25822" stroke-width="12" stroke-dasharray="113 251" stroke-dashoffset="0"/>
+              <circle cx="50" cy="50" r="40" fill="transparent" stroke="#1C1917" stroke-width="12" stroke-dasharray="88 251" stroke-dashoffset="-113" class="dark:stroke-stone-200"/>
+              <circle cx="50" cy="50" r="40" fill="transparent" stroke="#EAB308" stroke-width="12" stroke-dasharray="50 251" stroke-dashoffset="-201"/>
+            </svg>
+            <div class="absolute text-center">
+              <div class="text-lg font-bold font-serif text-stone-900 dark:text-stone-100">88%</div>
+              <div class="text-2xs uppercase font-mono tracking-wider text-stone-400">Done</div>
+            </div>
+          </div>
+
+          <div class="space-y-2 text-xs">
+            <div class="flex items-center justify-between">
+              <span class="flex items-center gap-2 text-stone-600 dark:text-stone-300">
+                <span class="w-2.5 h-2.5 rounded-full bg-terracotta"></span>
+                <span>Frontend & UI</span>
+              </span>
+              <span class="font-mono font-semibold">45%</span>
+            </div>
+            <div class="flex items-center justify-between">
+              <span class="flex items-center gap-2 text-stone-600 dark:text-stone-300">
+                <span class="w-2.5 h-2.5 rounded-full bg-stone-900 dark:bg-stone-200"></span>
+                <span>Backend API</span>
+              </span>
+              <span class="font-mono font-semibold">35%</span>
+            </div>
+            <div class="flex items-center justify-between">
+              <span class="flex items-center gap-2 text-stone-600 dark:text-stone-300">
+                <span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+                <span>QA & Tests</span>
+              </span>
+              <span class="font-mono font-semibold">20%</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Weekly Activity Bar Chart -->
+      <div class="p-6 rounded-3xl bg-editorial-card dark:bg-editorial-cardDark border border-editorial-border dark:border-editorial-borderDark shadow-editorial-sm">
+        <div class="flex items-center justify-between mb-6">
+          <div>
+            <h3 class="font-serif text-base font-semibold text-stone-900 dark:text-stone-100">Weekly Activity Volume</h3>
+            <p class="text-xs text-editorial-textMuted dark:text-stone-400">Total commit dan deployment per hari (Senin - Minggu)</p>
+          </div>
+          <span class="text-xs font-mono font-semibold text-terracotta bg-terracotta-soft dark:bg-stone-800 px-3 py-1 rounded-full">
+            This Week: 38 Act
+          </span>
+        </div>
+
+        <div class="flex items-end justify-between gap-2 sm:gap-4 h-36 pt-4 px-2">
+          <div class="flex-1 flex flex-col items-center gap-2 h-full justify-end group">
+            <div class="w-full max-w-[36px] bg-editorial-cream dark:bg-stone-800 group-hover:bg-terracotta rounded-t-xl transition-all duration-200" style="height: 45%;"></div>
+            <span class="text-xs font-mono text-stone-400 group-hover:text-stone-900 dark:group-hover:text-stone-100">Mon</span>
+          </div>
+          <div class="flex-1 flex flex-col items-center gap-2 h-full justify-end group">
+            <div class="w-full max-w-[36px] bg-editorial-cream dark:bg-stone-800 group-hover:bg-terracotta rounded-t-xl transition-all duration-200" style="height: 65%;"></div>
+            <span class="text-xs font-mono text-stone-400 group-hover:text-stone-900 dark:group-hover:text-stone-100">Tue</span>
+          </div>
+          <div class="flex-1 flex flex-col items-center gap-2 h-full justify-end group">
+            <div class="w-full max-w-[36px] bg-stone-900 dark:bg-stone-100 rounded-t-xl shadow-md transition-all duration-200" style="height: 85%;"></div>
+            <span class="text-xs font-mono font-bold text-stone-900 dark:text-stone-100">Wed</span>
+          </div>
+          <div class="flex-1 flex flex-col items-center gap-2 h-full justify-end group">
+            <div class="w-full max-w-[36px] bg-editorial-cream dark:bg-stone-800 group-hover:bg-terracotta rounded-t-xl transition-all duration-200" style="height: 55%;"></div>
+            <span class="text-xs font-mono text-stone-400 group-hover:text-stone-900 dark:group-hover:text-stone-100">Thu</span>
+          </div>
+          <div class="flex-1 flex flex-col items-center gap-2 h-full justify-end group">
+            <div class="w-full max-w-[36px] bg-editorial-cream dark:bg-stone-800 group-hover:bg-terracotta rounded-t-xl transition-all duration-200" style="height: 70%;"></div>
+            <span class="text-xs font-mono text-stone-400 group-hover:text-stone-900 dark:group-hover:text-stone-100">Fri</span>
+          </div>
+          <div class="flex-1 flex flex-col items-center gap-2 h-full justify-end group">
+            <div class="w-full max-w-[36px] bg-editorial-cream dark:bg-stone-800 group-hover:bg-terracotta rounded-t-xl transition-all duration-200" style="height: 30%;"></div>
+            <span class="text-xs font-mono text-stone-400 group-hover:text-stone-900 dark:group-hover:text-stone-100">Sat</span>
+          </div>
+          <div class="flex-1 flex flex-col items-center gap-2 h-full justify-end group">
+            <div class="w-full max-w-[36px] bg-editorial-cream dark:bg-stone-800 group-hover:bg-terracotta rounded-t-xl transition-all duration-200" style="height: 20%;"></div>
+            <span class="text-xs font-mono text-stone-400 group-hover:text-stone-900 dark:group-hover:text-stone-100">Sun</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <!-- Bottom Center "And more..." Pill Footer Button -->
     <footer class="mt-12 text-center">
-      <button class="px-8 py-2.5 rounded-full bg-editorial-cream dark:bg-editorial-creamDark hover:bg-[#E5E1D9] dark:hover:bg-stone-700 text-xs font-medium text-stone-700 dark:text-stone-200 transition-all shadow-sm hover:scale-105 active:scale-95">
-        And more...
-      </button>
+      <div class="inline-flex items-center gap-2 px-8 py-2.5 rounded-full bg-editorial-cream dark:bg-editorial-creamDark text-xs font-medium text-stone-700 dark:text-stone-200 shadow-sm">
+        <span>✨ Editorial Design System Complete</span>
+        <span class="text-stone-400">·</span>
+        <span class="font-mono text-2xs text-stone-500">Living Source of Truth</span>
+      </div>
     </footer>
-
   </main>
 
   <!-- Interactive Scripts -->
