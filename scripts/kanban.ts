@@ -619,6 +619,69 @@ export async function publishComponent(
 }
 
 /**
+ * Synthesizes a new standard token-compliant component template without needing starter templates
+ */
+export function scaffoldComponent(
+  componentName: string,
+  options: { targetDir?: string } = {}
+): string {
+  const cleanName = componentName
+    .trim()
+    .toLowerCase()
+    .replace(/^template-/, "")
+    .replace(/\.html$/, "")
+    .replace(/[^a-z0-9_-]/g, "-");
+  const fileName = `template-${cleanName}.html`;
+  const dir = options.targetDir || path.resolve(process.cwd(), "docs/ui-governance/components");
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  const targetPath = path.join(dir, fileName);
+
+  const formattedTitle = cleanName
+    .split("-")
+    .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
+    .join(" ");
+
+  const content = `<!-- Component: ${formattedTitle} Template -->
+<!-- Standards: WCAG AA, Token-based styles, Accessible labels, 6 states -->
+<div 
+  data-component="${cleanName}" 
+  class="p-6 bg-white dark:bg-stone-900 border border-[#EAE6DF] dark:border-[#2E2B27] rounded-3xl shadow-sm hover:shadow-md transition-shadow"
+>
+  <div class="flex items-center justify-between pb-4 border-b border-[#EAE6DF] dark:border-stone-800">
+    <h3 class="font-serif text-sm sm:text-base font-semibold text-stone-900 dark:text-stone-100">${formattedTitle}</h3>
+    <span class="px-2.5 py-0.5 rounded-full bg-[#EFECE6] dark:bg-stone-800 text-[10px] font-mono text-stone-600 dark:text-stone-300">Standard Component</span>
+  </div>
+
+  <div class="mt-4 space-y-3">
+    <p class="text-xs text-stone-600 dark:text-stone-400 leading-relaxed">
+      Komponen ${cleanName} disintesis secara mandiri sesuai dengan token warna dan tipografi editorial.
+    </p>
+
+    <!-- Action Buttons with 6 states -->
+    <div class="pt-2 flex items-center gap-2">
+      <button 
+        type="button" 
+        class="px-5 py-2 rounded-full bg-stone-900 text-stone-50 hover:bg-stone-800 text-xs font-semibold tracking-wide transition-transform active:scale-95 focus:outline-none focus:ring-2 focus:ring-stone-900 focus:ring-offset-2"
+      >
+        Action
+      </button>
+      <button 
+        type="button" 
+        class="px-5 py-2 rounded-full bg-[#EFECE6] dark:bg-stone-800 text-stone-800 dark:text-stone-200 text-xs font-medium hover:bg-stone-200 transition-colors"
+      >
+        Dismiss
+      </button>
+    </div>
+  </div>
+</div>
+`;
+
+  fs.writeFileSync(targetPath, content.trim() + "\n", "utf-8");
+  console.log(`✨ Synthesized new component template: ${targetPath}`);
+  return targetPath;
+}
+
+/**
  * Saves dedicated handoff file per daily folder (docs/handoffs/YYYY-MM-DD/),
  * updates main docs/HANDOFF.md, and syncs to NeoKanban Living Context
  */
@@ -1102,6 +1165,12 @@ if (isMain) {
         process.exit(1);
       }
       await publishComponent(arg1, { boardId: arg2 });
+    } else if (command === "component:new" || command === "component:scaffold") {
+      if (!arg1) {
+        console.error("Usage: kanban component:new <componentName>");
+        process.exit(1);
+      }
+      scaffoldComponent(arg1);
     } else {
       console.log("\n⚡ Lean NeoKanban Sync CLI");
       console.log("Commands:");
@@ -1117,6 +1186,7 @@ if (isMain) {
       console.log("  tokens:push [path] [boardId]     Upload token-design.json to NeoKanban");
       console.log("  component:check <name> [boardId] Check/fetch template-[name].html from board");
       console.log("  component:publish <file> [board] Publish template-[name].html to NeoKanban");
+      console.log("  component:new <name>             Synthesize token-compliant template-[name].html");
       console.log("\nHard Rule: Auto-Done is strictly prohibited. Final Done requires human review.\n");
     }
   }

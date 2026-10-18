@@ -1,4 +1,4 @@
-﻿---
+---
 name: ui-consistency-governance
 description: "Gunakan saat merancang, membuat, atau memodifikasi fitur frontend untuk menegakkan konsistensi UI melalui tata kelola token design dan template komponen di NeoKanban."
 ---
@@ -77,13 +77,20 @@ Sebelum membuat komponen UI baru (misal: Card, Modal, Filter Bar, Navbar, Button
 
 ---
 
-### Langkah 3: Pembangunan Komponen Berdasarkan Token Design
-1. Bangun berkas template visual mandiri di `docs/ui-governance/components/template-<nama-komponen>.html`.
-2. **Ketentuan Wajib**:
-   - Seluruh warna, padding, font, radius, dan shadow wajib mengambil nilai dari `token-design.json`.
-   - Memenuhi standar [ux-ui-pro-max.md](file:///C:/Users/kresna/Documents/harnes/harnes-neokanban/.agents/specialists/ux-ui-pro-max.md) (WCAG AA, focus ring, target sentuh 44px, status loading/empty).
+### Langkah 3: Pembangunan Komponen Mandiri (Autonomous Generative Synthesis)
+Jika komponen belum tersedia, agen **tidak memerlukan starter template**. Agen langsung merakit komponen baru dari DNA `token-design.json`:
+1. **Penerapan Resep Token (`.agents/rules/ui-consistency-rules.md`)**:
+   - Kontainer: `bg-white dark:bg-stone-900 border border-[#EAE6DF] rounded-3xl p-6 shadow-sm`
+   - Aksi Tombol: `px-7 py-2.5 rounded-full bg-stone-900 text-stone-50 hover:bg-stone-800 transition-transform active:scale-95`
+   - Tipografi: Headings `font-serif` (Playfair Display) + UI `font-sans` (Plus Jakarta Sans).
+   - Aksen: Oranye terakota (`#E25822`) dan Emas (`#EAB308`).
+2. **6 State Interaktif Wajib**: Sediakan penanganan untuk *default*, *hover*, *focus-visible* (focus ring), *active* (scale-95), *disabled*, dan *loading*.
+3. **Standar Aksesibilitas WCAG AA**:
+   - Rasio kontras minimal 4.5:1.
+   - Target sentuh minimal 44×44px.
+   - Atribut semantik `role`, `aria-label`, dan navigasi keyboard (TAB/ENTER/ESC).
+4. Simpan ke berkas template mandiri: `docs/ui-governance/components/template-<nama-komponen>.html`.
 
----
 
 ### Langkah 4: Review Pengguna & Publikasi ke NeoKanban
 1. Sajikan template visual kepada user untuk direview.
