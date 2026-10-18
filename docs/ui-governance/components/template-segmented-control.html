@@ -1,0 +1,42 @@
+<!-- Component: Editorial Segmented Controls -->
+<!-- Standards: WCAG AA, Pill geometry, Tab roles -->
+<div data-component="segmented-control" class="space-y-4">
+  <!-- View Mode Switcher (Grid vs List) -->
+  <div class="inline-flex p-1 rounded-full border border-stone-800 dark:border-stone-300 bg-white dark:bg-stone-900" role="tablist" aria-label="View switch">
+    <button 
+      type="button" 
+      role="tab" 
+      aria-selected="true" 
+      aria-label="Grid view"
+      class="w-8 h-8 rounded-full bg-stone-900 text-white flex items-center justify-center transition-all"
+    >
+      <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+        <path d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zM5 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H5zM11 5a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V5zM11 13a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/>
+      </svg>
+    </button>
+    <button 
+      type="button" 
+      role="tab" 
+      aria-selected="false" 
+      aria-label="List view"
+      class="w-8 h-8 rounded-full text-stone-500 hover:text-stone-900 dark:hover:text-stone-100 flex items-center justify-center transition-all"
+    >
+      <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+      </svg>
+    </button>
+  </div>
+
+  <!-- 3-Tab Text Capsule Switcher -->
+  <div class="inline-flex p-1 rounded-full border border-stone-800 dark:border-stone-300 bg-white dark:bg-stone-900 text-xs" role="tablist">
+    <button type="button" role="tab" aria-selected="true" class="px-5 py-1.5 rounded-full bg-stone-900 text-white font-medium shadow-sm">
+      Label
+    </button>
+    <button type="button" role="tab" aria-selected="false" class="px-5 py-1.5 rounded-full text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-100 font-medium">
+      Label
+    </button>
+    <button type="button" role="tab" aria-selected="false" class="px-5 py-1.5 rounded-full text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-100 font-medium">
+      Label
+    </button>
+  </div>
+</div>

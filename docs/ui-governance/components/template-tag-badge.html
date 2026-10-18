@@ -1,0 +1,51 @@
+<!-- Component: Editorial Tags & Badges -->
+<!-- Standards: WCAG AA, Token-based, Accessible labels -->
+<div data-component="tags-and-badges" class="flex flex-wrap items-center gap-2.5">
+  <!-- Active Category Pill (Terracotta) -->
+  <span 
+    role="button"
+    tabindex="0"
+    class="px-4 py-1.5 rounded-full bg-[#E25822] text-white text-xs font-bold tracking-wider uppercase cursor-pointer hover:bg-[#C84B1A] transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-[#E25822] focus:ring-offset-2"
+  >
+    ALL
+  </span>
+
+  <!-- Neutral Category Pill -->
+  <span 
+    role="button"
+    tabindex="0"
+    class="px-4 py-1.5 rounded-full bg-[#EFECE6] dark:bg-[#262320] text-stone-700 dark:text-stone-200 text-xs font-semibold tracking-wider uppercase cursor-pointer hover:bg-stone-200 dark:hover:bg-stone-700 transition-colors focus:outline-none focus:ring-2 focus:ring-stone-400"
+  >
+    MOODBOARD
+  </span>
+
+  <!-- Dropdown Filter Badge -->
+  <button 
+    type="button" 
+    class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#EFECE6] dark:bg-[#262320] text-stone-700 dark:text-stone-200 text-xs font-medium hover:bg-stone-200 dark:hover:bg-stone-700 transition-colors focus:outline-none focus:ring-2 focus:ring-stone-400"
+  >
+    <span>Ratings</span>
+    <svg class="w-3 h-3 text-stone-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"/>
+    </svg>
+  </button>
+
+  <!-- Clear Filter Dismissible Tag -->
+  <button 
+    type="button" 
+    class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium text-stone-700 dark:text-stone-300 hover:text-stone-900 bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 transition-colors"
+  >
+    <span>Clear All</span>
+    <svg class="w-3 h-3 text-stone-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/>
+    </svg>
+  </button>
+
+  <!-- Framed Architectural Category Tags -->
+  <span class="px-2.5 py-0.5 rounded border border-[#EAE6DF] dark:border-stone-700 text-[10px] font-mono font-semibold tracking-widest text-stone-600 dark:text-stone-300 uppercase">
+    ART DECO
+  </span>
+  <span class="px-2.5 py-0.5 rounded border border-[#EAE6DF] dark:border-stone-700 text-[10px] font-mono font-semibold tracking-widest text-stone-600 dark:text-stone-300 uppercase">
+    SILVER
+  </span>
+</div>
