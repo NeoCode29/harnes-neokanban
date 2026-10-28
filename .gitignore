@@ -1,7 +1,10 @@
-﻿node_modules/
+node_modules/
 dist/
 .kanban-map.json
 .DS_Store
 *.log
 
 .neokanban.json
+.env
+.env.*
+

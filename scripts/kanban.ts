@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { spawnSync } from "node:child_process";
 
 export interface TaskFiles {
   create: string[];
@@ -619,6 +620,163 @@ export async function publishComponent(
 }
 
 /**
+ * Checks completeness of local and remote context documents
+ */
+export async function checkContext(
+  options: { boardId?: string; apiUrl?: string; token?: string } = {}
+): Promise<{ localMissing: string[]; remoteMissing: string[] }> {
+  const contextDir = path.resolve(process.cwd(), "docs/context");
+  const requiredFiles = [
+    "INDEX.md",
+    "ARCHITECTURE.md",
+    "DATABASE.md",
+    "DESIGN_SYSTEM.md",
+    "AGENTS.md",
+    "BEHAVIOR.md",
+    "SECURITY.md",
+    "REPOSITORY.md",
+    "HANDOFF.md",
+  ];
+
+  console.log("\n📋 Checking Project Context Completeness (docs/context/)...");
+
+  const localMissing: string[] = [];
+  for (const f of requiredFiles) {
+    const exists = fs.existsSync(path.join(contextDir, f));
+    if (!exists) {
+      localMissing.push(f);
+      console.log(`  ❌ Local: ${f} (missing)`);
+    } else {
+      console.log(`  ✅ Local: ${f}`);
+    }
+  }
+
+  // Check functional feature contexts (FEATURE_*.md)
+  const allContextFiles = fs.existsSync(contextDir) ? fs.readdirSync(contextDir) : [];
+  const featureFiles = allContextFiles.filter(
+    (f) => f.startsWith("FEATURE_") && f.endsWith(".md") && f !== "FEATURE_TEMPLATE.md"
+  );
+  if (featureFiles.length === 0) {
+    console.log("  ⚠️ Local Feature Context: Belum ada berkas FEATURE_*.md!");
+    console.log("     Saran: Bangun spesifikasi fitur (docs/context/FEATURE_[NAMA].md) menggunakan FEATURE_TEMPLATE.md sebelum planning.");
+  } else {
+    console.log(`  ✅ Local Feature Contexts (${featureFiles.length} fitur terdaftar):`);
+    for (const ff of featureFiles) {
+      console.log(`     - ${ff}`);
+    }
+  }
+
+  const remoteMissing: string[] = [];
+  try {
+    const boardId = await resolveBoardId(options);
+    const contextRes = await kanbanApi<any>(`/api/boards/${boardId}/context`, options);
+    const docs: any[] = contextRes.documents || [];
+    console.log(`\n☁️ Checking NeoKanban Board Context [${boardId}]...`);
+    for (const f of requiredFiles) {
+      const found = docs.find((d) => d.fileName?.toLowerCase() === f.toLowerCase());
+      if (found) {
+        console.log(`  ✅ Board: ${f}`);
+      } else {
+        remoteMissing.push(f);
+        console.log(`  ⚠️ Board: ${f} (not on board)`);
+      }
+    }
+
+    if (featureFiles.length > 0) {
+      console.log(`\n☁️ Checking Remote Feature Contexts on Board...`);
+      for (const ff of featureFiles) {
+        const found = docs.find((d) => d.fileName?.toLowerCase() === ff.toLowerCase());
+        if (found) {
+          console.log(`  ✅ Board: ${ff}`);
+        } else {
+          console.log(`  ⚠️ Board: ${ff} (belum di-push, jalankan context:push)`);
+        }
+      }
+    }
+  } catch (err: any) {
+    console.log(`⚠️ Board check skipped (${err.message || "Offline"}).`);
+  }
+
+  return { localMissing, remoteMissing };
+}
+
+/**
+ * Pushes all docs/context/*.md files to NeoKanban board context
+ */
+export async function pushContext(
+  options: { boardId?: string; apiUrl?: string; token?: string } = {}
+): Promise<void> {
+  const contextDir = path.resolve(process.cwd(), "docs/context");
+  if (!fs.existsSync(contextDir)) {
+    throw new Error(`Context directory not found at: ${contextDir}`);
+  }
+
+  const boardId = await resolveBoardId(options);
+  const files = fs.readdirSync(contextDir).filter((f) => f.endsWith(".md"));
+  console.log(`\n🚀 Pushing ${files.length} context files to NeoKanban Board [${boardId}]...`);
+
+  const contextRes = await kanbanApi<any>(`/api/boards/${boardId}/context`, options);
+  const docs: any[] = contextRes.documents || [];
+
+  for (const f of files) {
+    const filePath = path.join(contextDir, f);
+    const content = fs.readFileSync(filePath, "utf-8");
+    const existing = docs.find((d) => d.fileName?.toLowerCase() === f.toLowerCase());
+    const titleMatch = content.match(/^#\s+(.+)$/m);
+    const title = titleMatch ? titleMatch[1].trim() : f.replace(/\.md$/, "");
+
+    if (existing) {
+      await kanbanApi<any>(`/api/boards/${boardId}/context/${existing.id}`, {
+        ...options,
+        method: "PUT",
+        body: { title, content },
+      });
+      console.log(`  🔄 Updated: ${f}`);
+    } else {
+      await kanbanApi<any>(`/api/boards/${boardId}/context`, {
+        ...options,
+        method: "POST",
+        body: { title, fileName: f, content },
+      });
+      console.log(`  ➕ Created: ${f}`);
+    }
+  }
+
+  console.log(`✅ All context files synced successfully to NeoKanban!\n`);
+}
+
+/**
+ * Pulls all context files from NeoKanban board to local docs/context/
+ */
+export async function pullContext(
+  options: { boardId?: string; apiUrl?: string; token?: string } = {}
+): Promise<void> {
+  const contextDir = path.resolve(process.cwd(), "docs/context");
+  if (!fs.existsSync(contextDir)) {
+    fs.mkdirSync(contextDir, { recursive: true });
+  }
+
+  const boardId = await resolveBoardId(options);
+  console.log(`\n📥 Pulling context documents from NeoKanban Board [${boardId}]...`);
+  const contextRes = await kanbanApi<any>(`/api/boards/${boardId}/context`, options);
+  const docs: any[] = contextRes.documents || [];
+
+  if (docs.length === 0) {
+    console.log(`ℹ️ No context documents found on board [${boardId}].`);
+    return;
+  }
+
+  for (const doc of docs) {
+    if (!doc.fileName || !doc.fileName.endsWith(".md")) continue;
+    const targetPath = path.join(contextDir, doc.fileName);
+    fs.writeFileSync(targetPath, doc.content || "", "utf-8");
+    console.log(`  💾 Downloaded: ${doc.fileName}`);
+  }
+
+  console.log(`✅ Context pull completed.\n`);
+}
+
+/**
  * Synthesizes a new standard token-compliant component template without needing starter templates
  */
 export function scaffoldComponent(
@@ -682,8 +840,101 @@ export function scaffoldComponent(
 }
 
 /**
- * Saves dedicated handoff file per daily folder (docs/handoffs/YYYY-MM-DD/),
- * updates main docs/HANDOFF.md, and syncs to NeoKanban Living Context
+ * Executes UI/UX Pro Max local search engine
+ */
+export function searchUiUx(args: string[]): void {
+  const scriptPath = path.resolve(process.cwd(), ".agents/skills/ui-ux-pro-max/scripts/search.py");
+  if (!fs.existsSync(scriptPath)) {
+    console.error(`❌ UI/UX Pro Max search script not found at: ${scriptPath}`);
+    return;
+  }
+  const proc = spawnSync("python", [scriptPath, ...args], { stdio: "inherit" });
+  if (proc.error) {
+    console.error(`❌ Failed to execute python search script:`, proc.error.message);
+  }
+}
+
+/**
+ * Runs a Trail of Bits-inspired security audit across the project
+ */
+export function runSecurityAudit(): { passed: boolean; issues: string[] } {
+  console.log("\n🛡️ Running Trail of Bits Security Audit...\n");
+  const issues: string[] = [];
+
+  // 1. Secret & Gitignore Check
+  console.log("1️⃣ Checking Sensitive Files & Git Hygiene...");
+  const gitignorePath = path.resolve(process.cwd(), ".gitignore");
+  if (fs.existsSync(gitignorePath)) {
+    const gitignore = fs.readFileSync(gitignorePath, "utf-8");
+    if (!gitignore.includes(".env")) {
+      issues.push("Warning: .env is not in .gitignore");
+      console.log("  ⚠️ .env is not listed in .gitignore");
+    } else {
+      console.log("  ✅ .env is properly ignored in .gitignore");
+    }
+    if (!gitignore.includes(".neokanban.json")) {
+      issues.push("Warning: .neokanban.json is not in .gitignore");
+      console.log("  ⚠️ .neokanban.json is not listed in .gitignore");
+    } else {
+      console.log("  ✅ .neokanban.json is properly ignored in .gitignore");
+    }
+  }
+
+  // 2. Dependency Vulnerability Audit (npm audit)
+  console.log("\n2️⃣ Checking Dependency Supply Chain (npm audit)...");
+  try {
+    const npmAudit = spawnSync("npm audit --audit-level=high", {
+      encoding: "utf-8",
+      shell: true,
+    });
+    if (npmAudit.status === 0) {
+      console.log("  ✅ No high or critical vulnerabilities found in dependencies.");
+    } else {
+      console.log("  ⚠️ Dependencies report high/critical vulnerabilities:\n", npmAudit.stdout || npmAudit.stderr);
+      issues.push("npm audit reported vulnerabilities");
+    }
+  } catch (err: any) {
+    console.log("  ⚠️ npm audit check skipped:", err.message);
+  }
+
+  // 3. Static Analysis Scan (Semgrep if available)
+  console.log("\n3️⃣ Checking Static Analysis Scanner (Semgrep)...");
+  try {
+    const semgrepCheck = spawnSync("semgrep --version", { encoding: "utf-8", shell: true });
+    if (semgrepCheck.status === 0) {
+      console.log(`  🔍 Running Semgrep with telemetry disabled (--metrics=off)...`);
+      const scan = spawnSync("semgrep scan --config auto --metrics=off", {
+        stdio: "inherit",
+        shell: true,
+      });
+      if (scan.status === 0) {
+        console.log("  ✅ Semgrep static analysis passed.");
+      } else {
+        issues.push("Semgrep reported security findings");
+      }
+    } else {
+      console.log("  ℹ️ Semgrep CLI not detected. Install via 'pip install semgrep' for AST static analysis.");
+    }
+  } catch {
+    console.log("  ℹ️ Semgrep CLI not installed.");
+  }
+
+  // Final Summary
+  console.log("\n═════════════════════════════════════════════════════════");
+  if (issues.length === 0) {
+    console.log("🎉 Security Audit PASSED: No critical security issues detected!");
+  } else {
+    console.log(`⚠️ Security Audit Completed with ${issues.length} item(s) to verify.`);
+  }
+  console.log("═════════════════════════════════════════════════════════\n");
+
+  return { passed: issues.length === 0, issues };
+}
+
+/**
+ * Saves and updates the single living handoff file (docs/HANDOFF.md),
+ * maintaining a clean, bounded history without micro-file clutter,
+ * and syncs to NeoKanban Living Context.
  */
 export async function saveHandoff(
   sessionName: string,
@@ -694,19 +945,14 @@ export async function saveHandoff(
     apiUrl?: string;
     token?: string;
     nextSteps?: string[];
+    branch?: string;
+    testsStatus?: string;
   } = {}
 ): Promise<{ fileName: string; filePath: string }> {
-  const cleanSlug = sessionName
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9_.-]/g, "-")
-    .replace(/^-+|-+$/g, "");
-  const fileName = `handoff-${cleanSlug}.md`;
-
-  const dateStr = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
-  const dailyHandoffsDir = path.resolve(process.cwd(), `docs/handoffs/${dateStr}`);
-  if (!fs.existsSync(dailyHandoffsDir)) {
-    fs.mkdirSync(dailyHandoffsDir, { recursive: true });
+  const mainHandoffPath = path.resolve(process.cwd(), "docs/HANDOFF.md");
+  const mainDir = path.dirname(mainHandoffPath);
+  if (!fs.existsSync(mainDir)) {
+    fs.mkdirSync(mainDir, { recursive: true });
   }
 
   const sessionContent =
@@ -714,35 +960,39 @@ export async function saveHandoff(
     formatHandoffSession({
       sessionName,
       summary: options.summary || "Aktivitas sesi kerja diselesaikan.",
+      branch: options.branch,
+      testsStatus: options.testsStatus,
       nextSteps: options.nextSteps || ["Lanjutkan task berikutnya dari NeoKanban / Implementation Plan."],
     });
 
-  // 1. Write dedicated session file: docs/handoffs/YYYY-MM-DD/handoff-<nama-sendiri>.md
-  const filePath = path.join(dailyHandoffsDir, fileName);
-  fs.writeFileSync(filePath, sessionContent.trim() + "\n", "utf-8");
-  console.log(`💾 Saved daily handoff: ${filePath}`);
+  const header = `# Living Session Handoff
 
-  // 2. Prepend/update in main docs/HANDOFF.md with clear session boundary
-  const mainHandoffPath = path.resolve(process.cwd(), "docs/HANDOFF.md");
-  let mainContent = "";
+> Dokumen ini adalah **Living Source of Truth** status pengerjaan yang **wajib dibaca di awal setiap sesi baru** dan **diperbarui setiap kali menyelesaikan milestone/aktivitas**.
+> Format ini dijaga ramping dan terfokus pada status aktif tanpa file log yang menumpuk.`;
+
+  // Read existing content to preserve at most 2 previous session blocks
+  let existingSessions: string[] = [];
   if (fs.existsSync(mainHandoffPath)) {
-    mainContent = fs.readFileSync(mainHandoffPath, "utf-8");
+    const raw = fs.readFileSync(mainHandoffPath, "utf-8");
+    const divider = "═".repeat(75);
+    const blocks = raw.split(divider).map((b) => b.trim()).filter((b) => b.startsWith("## 🏁 SESI:"));
+    existingSessions = blocks.map((b) => `${divider}\n${b}\n${divider}`);
   }
 
-  const headerRegex = /^#\s+Living\s+Session\s+Handoff[\s\S]*?(?=\n═{10,}|\n##\s+🏁|\n##\s+1\.|$)/i;
-  const headerMatch = mainContent.match(headerRegex);
-  const header = headerMatch
-    ? headerMatch[0].trim()
-    : `# Living Session Handoff\n\n> Dokumen ini adalah **Living Source of Truth** status pengerjaan yang **wajib dibaca di awal setiap sesi baru** dan **wajib diperbarui setiap kali menyelesaikan aktivitas**.\n> Setiap sesi diarsipkan per hari di \`docs/handoffs/YYYY-MM-DD/handoff-<nama-sendiri>.md\` dan disinkronkan langsung ke Living Context NeoKanban.`;
+  // Prepend current session, keep max 2 previous sessions
+  const sessionsToKeep = [sessionContent.trim(), ...existingSessions.slice(0, 2)];
+  const updatedMain = `${header}\n\n${sessionsToKeep.join("\n\n")}\n`;
 
-  const remainingHistory = mainContent.replace(headerRegex, "").trim();
-  const updatedMain = `${header}\n\n${sessionContent.trim()}\n\n${remainingHistory ? remainingHistory + "\n" : ""}`;
   fs.writeFileSync(mainHandoffPath, updatedMain, "utf-8");
   console.log(`📝 Updated living handoff: ${mainHandoffPath}`);
 
-  // 3. Sync to NeoKanban Board Context if server available
+  // Sync to NeoKanban Board Context if server available
   try {
     let boardId = options.boardId;
+    if (!boardId) {
+      const cfg = loadProjectConfig();
+      boardId = cfg?.boardId;
+    }
     if (!boardId) {
       const boardsData = await kanbanApi<{ boards: any[] }>("/api/boards", options);
       const boards = boardsData.boards || [];
@@ -752,41 +1002,41 @@ export async function saveHandoff(
     }
 
     if (boardId) {
-      console.log(`🔄 Syncing "${fileName}" to NeoKanban board context [${boardId}]...`);
+      console.log(`🔄 Syncing living handoff to NeoKanban board context [${boardId}]...`);
       const contextRes = await kanbanApi<any>(`/api/boards/${boardId}/context`, options);
       const docs: any[] = contextRes.documents || [];
-      const existing = docs.find((d) => d.fileName?.toLowerCase() === fileName.toLowerCase());
+      const existing = docs.find((d) => d.fileName?.toLowerCase() === "handoff.md" || d.fileName?.toLowerCase() === "living-handoff.md");
 
       if (existing) {
         await kanbanApi<any>(`/api/boards/${boardId}/context/${existing.id}`, {
           ...options,
           method: "PUT",
           body: {
-            title: `Handoff: ${sessionName}`,
-            content: sessionContent,
+            title: `Living Handoff (Active)`,
+            content: updatedMain,
           },
         });
-        console.log(`✅ Updated existing context file in NeoKanban: "${fileName}"`);
+        console.log(`✅ Updated existing living handoff in NeoKanban.`);
       } else {
         await kanbanApi<any>(`/api/boards/${boardId}/context`, {
           ...options,
           method: "POST",
           body: {
-            title: `Handoff: ${sessionName}`,
-            fileName,
-            content: sessionContent,
+            title: `Living Handoff (Active)`,
+            fileName: "HANDOFF.md",
+            content: updatedMain,
           },
         });
-        console.log(`✅ Created new context file in NeoKanban: "${fileName}"`);
+        console.log(`✅ Created living handoff in NeoKanban.`);
       }
     } else {
-      console.log(`ℹ️ No active NeoKanban board found. File safely stored locally at: docs/handoffs/${dateStr}/${fileName}`);
+      console.log(`ℹ️ NeoKanban board offline. Living handoff stored locally at: docs/HANDOFF.md`);
     }
   } catch (err: any) {
-    console.log(`⚠️ NeoKanban sync skipped (${err.message || "Server not reachable"}). File is safely stored locally at: docs/handoffs/${dateStr}/${fileName}`);
+    console.log(`⚠️ NeoKanban sync skipped (${err.message || "Server not reachable"}). Living handoff stored locally at: docs/HANDOFF.md`);
   }
 
-  return { fileName, filePath };
+  return { fileName: "HANDOFF.md", filePath: mainHandoffPath };
 }
 
 /**
@@ -807,9 +1057,25 @@ export async function publishPlan(
   console.log(`\n📋 Publishing Plan: "${plan.planTitle}"`);
   console.log(`🎯 Tasks parsed: ${plan.tasks.length}`);
 
+  // Governance check: Ensure feature contexts exist
+  const contextDir = path.resolve(process.cwd(), "docs/context");
+  if (fs.existsSync(contextDir)) {
+    const allContextFiles = fs.readdirSync(contextDir);
+    const featureFiles = allContextFiles.filter(
+      (f) => f.startsWith("FEATURE_") && f.endsWith(".md") && f !== "FEATURE_TEMPLATE.md"
+    );
+    if (featureFiles.length === 0) {
+      console.log(`⚠️ [Governance Warning] Tidak ditemukan berkas spesifikasi fitur (docs/context/FEATURE_*.md)!`);
+      console.log(`   Disiplin Lean Harness: Sangat disarankan menyusun FEATURE_[NAMA].md sebelum memublikasikan kartu ke NeoKanban.\n`);
+    } else {
+      console.log(`📁 Linked Feature Contexts: ${featureFiles.length} file spesifikasi fitur aktif.`);
+    }
+  }
+
   // Resolve board
-  let boardId = options.boardId;
-  let boardTitle = "Project Development";
+  const cfg = loadProjectConfig();
+  let boardId = options.boardId || cfg?.boardId;
+  let boardTitle = cfg?.boardTitle || "Project Development";
 
   const ledger: KanbanMappingLedger = {
     boardId: boardId || "offline-board",
@@ -1171,6 +1437,28 @@ if (isMain) {
         process.exit(1);
       }
       scaffoldComponent(arg1);
+    } else if (command === "ui:search") {
+      if (!arg1) {
+        console.error("Usage: kanban ui:search <query> [--domain <style|color|typography|ux|chart|icons>] [--stack <stack>]");
+        process.exit(1);
+      }
+      const rawArgs = process.argv.slice(process.argv.indexOf("ui:search") + 1);
+      searchUiUx(rawArgs);
+    } else if (command === "ui:design" || command === "ui:design-system") {
+      if (!arg1) {
+        console.error("Usage: kanban ui:design <project/product query>");
+        process.exit(1);
+      }
+      const rawArgs = process.argv.slice(process.argv.indexOf(command) + 1);
+      searchUiUx([...rawArgs, "--design-system"]);
+    } else if (command === "context:check") {
+      await checkContext({ boardId: arg1 });
+    } else if (command === "context:push") {
+      await pushContext({ boardId: arg1 });
+    } else if (command === "context:pull") {
+      await pullContext({ boardId: arg1 });
+    } else if (command === "security:audit" || command === "audit") {
+      runSecurityAudit();
     } else {
       console.log("\n⚡ Lean NeoKanban Sync CLI");
       console.log("Commands:");
@@ -1180,13 +1468,19 @@ if (isMain) {
       console.log("  start <cardId>                   Move card to 'In Progress' + log handoff");
       console.log("  check <cardId> <stepPattern>     Mark TDD checklist step completed");
       console.log("  review <cardId> [--report text]  Move card to 'Review' + attach proof + log handoff");
-      console.log("  handoff <sessionName>            Save handoff to daily folder & sync to NeoKanban");
+      console.log("  handoff <sessionName>            Save handoff to docs/HANDOFF.md & sync to NeoKanban");
+      console.log("  security:audit                   Run Trail of Bits security scan (secrets, CVEs, SAST)");
+      console.log("  context:check [boardId]          Check completeness of project context files");
+      console.log("  context:push [boardId]           Upload docs/context/*.md to NeoKanban Board Context");
+      console.log("  context:pull [boardId]           Download context documents from NeoKanban to local");
       console.log("  tokens:check [boardId]           Check if token-design.json exists on board");
       console.log("  tokens:pull [boardId]            Pull token-design.json to local directory");
       console.log("  tokens:push [path] [boardId]     Upload token-design.json to NeoKanban");
       console.log("  component:check <name> [boardId] Check/fetch template-[name].html from board");
       console.log("  component:publish <file> [board] Publish template-[name].html to NeoKanban");
       console.log("  component:new <name>             Synthesize token-compliant template-[name].html");
+      console.log("  ui:search <query> [options]      Query UI/UX Pro Max intelligence (styles, colors, etc)");
+      console.log("  ui:design <query>                Generate complete Design System with UI/UX Pro Max");
       console.log("\nHard Rule: Auto-Done is strictly prohibited. Final Done requires human review.\n");
     }
   }
