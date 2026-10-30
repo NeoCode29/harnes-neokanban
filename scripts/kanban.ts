@@ -565,6 +565,365 @@ export async function checkComponent(
   }
 }
 
+export interface UiComponentMetadata {
+  name: string;
+  category: string;
+  description: string | null;
+  htmlContent: string;
+}
+
+/**
+ * Parses component metadata from HTML comments or derives from filename
+ */
+export function parseComponentMetadata(content: string, filename: string): UiComponentMetadata {
+  let name = "";
+  const nameComment = content.match(/<!--\s*name:\s*([^\n\r>]+)-->/i);
+  if (nameComment) {
+    name = nameComment[1].trim();
+  } else {
+    const baseName = path.basename(filename)
+      .replace(/^template-/, "")
+      .replace(/\.html$/, "")
+      .replace(/[-_]+/g, " ");
+    name = baseName
+      .split(" ")
+      .map((w: string) => w.charAt(0).toUpperCase() + w.slice(1))
+      .join(" ");
+  }
+
+  let category = "GENERAL";
+  const catComment = content.match(/<!--\s*category:\s*([^\n\r>]+)-->/i);
+  if (catComment) {
+    category = catComment[1].trim().toUpperCase();
+  }
+
+  let description: string | null = null;
+  const descComment = content.match(/<!--\s*description:\s*([^\n\r>]+)-->/i);
+  if (descComment) {
+    description = descComment[1].trim();
+  }
+
+  return {
+    name,
+    category,
+    description,
+    htmlContent: content.trim(),
+  };
+}
+
+/**
+ * Formats a visual review annotation item for human/AI console view
+ */
+export function formatAnnotationItem(anno: {
+  id: string;
+  type: string;
+  posX: number;
+  posY: number;
+  comment: string;
+  status: string;
+  targetTitle?: string;
+  pageId?: string;
+  componentId?: string;
+}): string {
+  const badge = anno.type === "PIN" ? "📌 PIN" : "🔲 BOX";
+  const pos = `(${anno.posX.toFixed(1)}%, ${anno.posY.toFixed(1)}%)`;
+  const target = anno.targetTitle ? ` on "${anno.targetTitle}"` : "";
+  const statusColor = anno.status === "OPEN" ? "🔴 OPEN" : "🟢 RESOLVED";
+  return `${badge} ${pos}${target} [${statusColor}]:\n   💬 ${anno.comment}\n   🆔 ${anno.id}`;
+}
+
+/**
+ * Formats a remote skill library catalog item
+ */
+export function formatSkillItem(skill: {
+  id: string;
+  name: string;
+  slug: string;
+  category?: string;
+  description?: string;
+  filesCount?: number;
+}): string {
+  const cat = skill.category ? `[${skill.category}] ` : "";
+  const files = skill.filesCount !== undefined ? ` (${skill.filesCount} files)` : "";
+  const desc = skill.description ? `\n   ${skill.description}` : "";
+  return `📦 ${cat}${skill.name} (${skill.slug})${files}${desc}`;
+}
+
+/**
+ * Publishes a component directly to NeoKanban UI/UX Studio entity (/api/boards/[id]/ui-components)
+ */
+export async function publishUiComponent(
+  filePath: string,
+  options: { boardId?: string; apiUrl?: string; token?: string; category?: string; description?: string } = {}
+): Promise<void> {
+  const fullPath = path.resolve(process.cwd(), filePath);
+  if (!fs.existsSync(fullPath)) {
+    throw new Error(`Component file not found at: ${fullPath}`);
+  }
+
+  const rawContent = fs.readFileSync(fullPath, "utf-8");
+  const meta = parseComponentMetadata(rawContent, filePath);
+  if (options.category) meta.category = options.category.toUpperCase();
+  if (options.description) meta.description = options.description;
+
+  const boardId = await resolveBoardId(options);
+
+  try {
+    const res = await kanbanApi<{ components?: any[] }>(`/api/boards/${boardId}/ui-components`, options);
+    const existing = res.components?.find((c: any) => c.name?.toLowerCase() === meta.name.toLowerCase());
+
+    if (existing) {
+      await kanbanApi<any>(`/api/boards/${boardId}/ui-components/${existing.id}`, {
+        ...options,
+        method: "PUT",
+        body: {
+          name: meta.name,
+          category: meta.category,
+          description: meta.description,
+          htmlContent: meta.htmlContent,
+        },
+      });
+      console.log(`✅ Updated UI/UX Studio component "${meta.name}" [${meta.category}] on NeoKanban.`);
+    } else {
+      await kanbanApi<any>(`/api/boards/${boardId}/ui-components`, {
+        ...options,
+        method: "POST",
+        body: {
+          name: meta.name,
+          category: meta.category,
+          description: meta.description,
+          htmlContent: meta.htmlContent,
+          order: 0,
+        },
+      });
+      console.log(`✅ Created new UI/UX Studio component "${meta.name}" [${meta.category}] on NeoKanban.`);
+    }
+  } catch (err: any) {
+    console.log(`⚠️ UI/UX Studio API sync skipped (${err.message || "Endpoint not reachable"}). Fallback to context document publishing.`);
+    await publishComponent(filePath, options);
+  }
+}
+
+/**
+ * Pulls all UI components from NeoKanban UI/UX Studio into docs/ui-governance/components/
+ */
+export async function pullUiComponents(
+  options: { boardId?: string; apiUrl?: string; token?: string; targetDir?: string } = {}
+): Promise<void> {
+  const boardId = await resolveBoardId(options);
+  const targetDir = path.resolve(process.cwd(), options.targetDir || "docs/ui-governance/components");
+  if (!fs.existsSync(targetDir)) {
+    fs.mkdirSync(targetDir, { recursive: true });
+  }
+
+  try {
+    const res = await kanbanApi<{ components?: any[] }>(`/api/boards/${boardId}/ui-components`, options);
+    const components = res.components || [];
+    console.log(`📥 Found ${components.length} components in NeoKanban UI/UX Studio for board [${boardId}].`);
+
+    for (const comp of components) {
+      const cleanSlug = comp.name
+        .toLowerCase()
+        .replace(/[^a-z0-9_-]/g, "-")
+        .replace(/^-+|-+$/g, "");
+      const fileName = `template-${cleanSlug}.html`;
+      const filePath = path.join(targetDir, fileName);
+
+      const header = `<!-- name: ${comp.name} -->\n<!-- category: ${comp.category || "GENERAL"} -->\n${
+        comp.description ? `<!-- description: ${comp.description} -->\n` : ""
+      }\n`;
+      fs.writeFileSync(filePath, `${header}${comp.htmlContent || ""}`, "utf-8");
+      console.log(`  💾 Saved: ${fileName}`);
+    }
+    console.log(`✅ UI components pull completed.`);
+  } catch (err: any) {
+    console.error(`❌ Failed to pull UI components: ${err.message || err}`);
+  }
+}
+
+/**
+ * Publishes/Syncs a UI prototype page to NeoKanban UI/UX Studio (/api/boards/[id]/ui-pages)
+ */
+export async function pushUiPage(
+  filePath: string,
+  options: { boardId?: string; apiUrl?: string; token?: string; title?: string; routePath?: string; category?: string } = {}
+): Promise<void> {
+  const fullPath = path.resolve(process.cwd(), filePath);
+  if (!fs.existsSync(fullPath)) {
+    throw new Error(`Page file not found at: ${fullPath}`);
+  }
+
+  const rawContent = fs.readFileSync(fullPath, "utf-8");
+  const baseName = path.basename(filePath, ".html");
+  const title = options.title || baseName.replace(/[-_]+/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase());
+  const routePath = options.routePath || `/${baseName.toLowerCase().replace(/[^a-z0-9_-]/g, "-")}`;
+  const category = options.category || "GENERAL";
+  const boardId = await resolveBoardId(options);
+
+  try {
+    const res = await kanbanApi<{ pages?: any[] }>(`/api/boards/${boardId}/ui-pages`, options);
+    const existing = res.pages?.find((p: any) => p.path === routePath || p.title?.toLowerCase() === title.toLowerCase());
+
+    if (existing) {
+      await kanbanApi<any>(`/api/boards/${boardId}/ui-pages/${existing.id}`, {
+        ...options,
+        method: "PUT",
+        body: { title, path: routePath, category, htmlContent: rawContent },
+      });
+      console.log(`✅ Updated UI/UX Studio Page "${title}" (${routePath}) on NeoKanban.`);
+    } else {
+      await kanbanApi<any>(`/api/boards/${boardId}/ui-pages`, {
+        ...options,
+        method: "POST",
+        body: { title, path: routePath, category, htmlContent: rawContent, order: 0 },
+      });
+      console.log(`✅ Created new UI/UX Studio Page "${title}" (${routePath}) on NeoKanban.`);
+    }
+  } catch (err: any) {
+    console.error(`❌ Failed to push UI page: ${err.message || err}`);
+  }
+}
+
+/**
+ * Pulls all UI prototype pages from NeoKanban UI/UX Studio into local docs/ui-governance/pages/
+ */
+export async function pullUiPages(
+  options: { boardId?: string; apiUrl?: string; token?: string; targetDir?: string } = {}
+): Promise<void> {
+  const boardId = await resolveBoardId(options);
+  const targetDir = path.resolve(process.cwd(), options.targetDir || "docs/ui-governance/pages");
+  if (!fs.existsSync(targetDir)) {
+    fs.mkdirSync(targetDir, { recursive: true });
+  }
+
+  try {
+    const res = await kanbanApi<{ pages?: any[] }>(`/api/boards/${boardId}/ui-pages`, options);
+    const pages = res.pages || [];
+    console.log(`📥 Found ${pages.length} pages in NeoKanban UI/UX Studio for board [${boardId}].`);
+
+    for (const page of pages) {
+      const cleanSlug = page.path.replace(/^\//, "").replace(/[^a-z0-9_-]/g, "-") || "index";
+      const fileName = `${cleanSlug}.html`;
+      const filePath = path.join(targetDir, fileName);
+
+      fs.writeFileSync(filePath, page.htmlContent || "", "utf-8");
+      console.log(`  💾 Saved Page: ${fileName} (${page.title})`);
+    }
+    console.log(`✅ UI pages pull completed.`);
+  } catch (err: any) {
+    console.error(`❌ Failed to pull UI pages: ${err.message || err}`);
+  }
+}
+
+/**
+ * Fetches visual review annotations (pins & bounding boxes) from NeoKanban UI/UX Studio
+ */
+export async function fetchUiAnnotations(
+  options: { boardId?: string; apiUrl?: string; token?: string; pageId?: string; componentId?: string; status?: string } = {}
+): Promise<void> {
+  try {
+    let endpoint = "/api/ui-annotations";
+    const params = new URLSearchParams();
+    if (options.pageId) params.append("pageId", options.pageId);
+    if (options.componentId) params.append("componentId", options.componentId);
+    if (options.status) params.append("status", options.status);
+    const qs = params.toString();
+    if (qs) endpoint += `?${qs}`;
+
+    const res = await kanbanApi<{ annotations?: any[] }>(endpoint, options);
+    const annotations = res.annotations || [];
+    console.log(`\n🎨 NeoKanban UI/UX Studio Review Annotations (${annotations.length} items):\n`);
+
+    if (annotations.length === 0) {
+      console.log("ℹ️ No review annotations found.");
+      return;
+    }
+
+    for (const anno of annotations) {
+      console.log(formatAnnotationItem(anno));
+      console.log("─".repeat(50));
+    }
+  } catch (err: any) {
+    console.error(`❌ Failed to fetch UI review annotations: ${err.message || err}`);
+  }
+}
+
+/**
+ * Lists available skills from NeoKanban AI Skill Library
+ */
+export async function listRemoteSkills(
+  options: { apiUrl?: string; token?: string } = {}
+): Promise<void> {
+  try {
+    const res = await kanbanApi<{ skills?: any[] }>("/api/skills", options);
+    const skills = res.skills || [];
+    console.log(`\n🧠 NeoKanban AI Skill Library (${skills.length} available packages):\n`);
+
+    if (skills.length === 0) {
+      console.log("ℹ️ No skills published in the library.");
+      return;
+    }
+
+    for (const skill of skills) {
+      console.log(
+        formatSkillItem({
+          id: skill.id,
+          name: skill.name,
+          slug: skill.slug,
+          category: skill.category,
+          description: skill.description,
+          filesCount: skill.files?.length,
+        })
+      );
+      console.log("─".repeat(50));
+    }
+  } catch (err: any) {
+    console.error(`❌ Failed to list remote skills: ${err.message || err}`);
+  }
+}
+
+/**
+ * Downloads a skill package from NeoKanban Skill Library and unpacks to local .agents/skills/<slug>/
+ */
+export async function pullRemoteSkill(
+  slugOrId: string,
+  options: { apiUrl?: string; token?: string; targetDir?: string } = {}
+): Promise<void> {
+  try {
+    const res = await kanbanApi<any>(`/api/skills/${slugOrId}`, options);
+    const skill = res.skill || res;
+    if (!skill || !skill.slug) {
+      throw new Error(`Skill "${slugOrId}" not found in NeoKanban Skill Library.`);
+    }
+
+    const baseDir = options.targetDir || path.resolve(process.cwd(), ".agents/skills", skill.slug);
+    if (!fs.existsSync(baseDir)) {
+      fs.mkdirSync(baseDir, { recursive: true });
+    }
+
+    console.log(`📥 Unpacking skill "${skill.name}" to: ${baseDir}...`);
+    if (skill.files && Array.isArray(skill.files)) {
+      for (const file of skill.files) {
+        const filePath = path.join(baseDir, file.filePath || file.fileName);
+        const parentDir = path.dirname(filePath);
+        if (!fs.existsSync(parentDir)) {
+          fs.mkdirSync(parentDir, { recursive: true });
+        }
+        fs.writeFileSync(filePath, file.content || "", "utf-8");
+        console.log(`  💾 Installed: ${file.filePath || file.fileName}`);
+      }
+    } else if (skill.readmeContent || skill.skillMarkdown) {
+      const skillMd = path.join(baseDir, "SKILL.md");
+      fs.writeFileSync(skillMd, skill.skillMarkdown || skill.readmeContent, "utf-8");
+      console.log(`  💾 Installed: SKILL.md`);
+    }
+
+    console.log(`✅ Skill "${skill.slug}" installed successfully to .agents/skills/${skill.slug}/`);
+  } catch (err: any) {
+    console.error(`❌ Failed to pull skill: ${err.message || err}`);
+  }
+}
+
 /**
  * Publishes reviewed and approved component template to NeoKanban board context
  */
@@ -1474,12 +1833,32 @@ if (isMain) {
         process.exit(1);
       }
       await checkComponent(arg1, { boardId: arg2 });
-    } else if (command === "component:publish") {
+    } else if (command === "component:publish" || command === "studio:component:push") {
       if (!arg1) {
         console.error("Usage: kanban component:publish <path-to-template.html> [boardId]");
         process.exit(1);
       }
-      await publishComponent(arg1, { boardId: arg2 });
+      await publishUiComponent(arg1, { boardId: arg2 });
+    } else if (command === "component:pull" || command === "studio:component:pull") {
+      await pullUiComponents({ boardId: arg1 });
+    } else if (command === "page:push" || command === "studio:page:push") {
+      if (!arg1) {
+        console.error("Usage: kanban page:push <path-to-page.html> [boardId]");
+        process.exit(1);
+      }
+      await pushUiPage(arg1, { boardId: arg2 });
+    } else if (command === "page:pull" || command === "studio:page:pull") {
+      await pullUiPages({ boardId: arg1 });
+    } else if (command === "ui:annotations" || command === "studio:annotations" || command === "ui:review") {
+      await fetchUiAnnotations({ boardId: arg1 });
+    } else if (command === "skills:list") {
+      await listRemoteSkills();
+    } else if (command === "skills:pull") {
+      if (!arg1) {
+        console.error("Usage: kanban skills:pull <slug-or-id>");
+        process.exit(1);
+      }
+      await pullRemoteSkill(arg1);
     } else if (command === "component:new" || command === "component:scaffold") {
       if (!arg1) {
         console.error("Usage: kanban component:new <componentName>");
@@ -1516,7 +1895,7 @@ if (isMain) {
       console.log("  publish <planPath> [boardId]     Publish plan tasks to 'To Do' column");
       console.log("  start <cardId>                   Move card to 'In Progress' + log handoff");
       console.log("  check <cardId> <stepPattern>     Mark TDD checklist step completed");
-      console.log("  review <cardId> [--report text] [--skip-preflight] [--preflight-cmd <cmd>]  Move card to 'Review' + pre-flight test + report");
+      console.log("  review <cardId> [--report text]  Move card to 'Review' + pre-flight test + report");
       console.log("  handoff <sessionName>            Save handoff to docs/HANDOFF.md & sync to NeoKanban");
       console.log("  security:audit                   Run Trail of Bits security scan (secrets, CVEs, SAST)");
       console.log("  context:check [boardId]          Check completeness of project context files");
@@ -1525,8 +1904,13 @@ if (isMain) {
       console.log("  tokens:check [boardId]           Check if token-design.json exists on board");
       console.log("  tokens:pull [boardId]            Pull token-design.json to local directory");
       console.log("  tokens:push [path] [boardId]     Upload token-design.json to NeoKanban");
-      console.log("  component:check <name> [boardId] Check/fetch template-[name].html from board");
-      console.log("  component:publish <file> [board] Publish template-[name].html to NeoKanban");
+      console.log("  component:publish <file> [board] Publish template to NeoKanban UI/UX Studio");
+      console.log("  component:pull [boardId]         Pull UI components from NeoKanban UI/UX Studio");
+      console.log("  page:push <file> [boardId]       Publish HTML page prototype to UI/UX Studio");
+      console.log("  page:pull [boardId]              Pull HTML page prototypes from UI/UX Studio");
+      console.log("  ui:annotations [boardId]         Fetch visual review pins & annotations from UI Studio");
+      console.log("  skills:list                      List available skills from NeoKanban Skill Library");
+      console.log("  skills:pull <slug>               Install skill package to local .agents/skills/<slug>/");
       console.log("  component:new <name>             Synthesize token-compliant template-[name].html");
       console.log("  ui:search <query> [options]      Query UI/UX Pro Max intelligence (styles, colors, etc)");
       console.log("  ui:design <query>                Generate complete Design System with UI/UX Pro Max");

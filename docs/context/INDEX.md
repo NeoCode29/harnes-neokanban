@@ -28,6 +28,7 @@
 | **[`HANDOFF.md`](./HANDOFF.md)** | Riwayat | Wajib | Status aktif saat ini, fokus pengerjaan, dan langkah berikutnya |
 | **[`ROLE_PERMISSION.md`](./ROLE_PERMISSION.md)** | Akses | Opsional | Matriks RBAC (Role-Based Access Control) dan perizinan pengguna |
 | **[`DEPLOY.md`](./DEPLOY.md)** | Operasional | Opsional | Konfigurasi environment, CI/CD pipeline, target deployment |
+| **[`FEATURE_NEOKANBAN_INTEGRATION.md`](./FEATURE_NEOKANBAN_INTEGRATION.md)** | Integrasi | Aktif | Penyelarasan penuh UI/UX Studio, Skill Library, Context Hub, dan Review Annotations |
 | **`FEATURE_<nama>.md`** | Fungsional | Kondisional | Dokumen spesifikasi per modul/fitur spesifik |
 
 ---

@@ -25,6 +25,12 @@ npx tsx scripts/kanban.ts start <cardId>
 npx tsx scripts/kanban.ts check <cardId> "Step Description"
 npx tsx scripts/kanban.ts review <cardId> --report "Test verification summary"
 # (review command enforces automated pre-flight testing gatekeeper)
+
+# UI/UX Studio & Skill Library Sync
+npx tsx scripts/kanban.ts component:publish <path-to-template.html>
+npx tsx scripts/kanban.ts ui:annotations
+npx tsx scripts/kanban.ts skills:list
+npx tsx scripts/kanban.ts skills:pull <slug>
 ```
 
 ## 3. Three-Stage Agent Crew Pipeline (Planner → Worker → Checker)

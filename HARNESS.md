@@ -109,7 +109,7 @@ npx tsx scripts/kanban.ts check <cardId> "Step 1"
 # Pindahkan kartu ke kolom Review (otomatis menjalankan Pre-Flight Test Gatekeeper)
 npx tsx scripts/kanban.ts review <cardId> --report "Seluruh unit test lulus 100%" [--skip-preflight] [--preflight-cmd <cmd>]
 
-# --- 4. Tata Kelola Token & Komponen UI ---
+# --- 4. Tata Kelola UI/UX Studio, Token & Review Annotations ---
 # Pengecekan token design di NeoKanban
 npx tsx scripts/kanban.ts tokens:check
 
@@ -119,14 +119,23 @@ npx tsx scripts/kanban.ts tokens:pull
 # Unggah token design lokal ke NeoKanban
 npx tsx scripts/kanban.ts tokens:push
 
-# Periksa ketersediaan komponen tertentu
-npx tsx scripts/kanban.ts component:check <nama-komponen>
+# Publikasikan komponen ke entitas UI/UX Studio NeoKanban (UiComponent)
+npx tsx scripts/kanban.ts component:publish docs/ui-governance/components/template-<nama>.html
+
+# Tarik seluruh komponen dari UI/UX Studio NeoKanban ke direktori lokal
+npx tsx scripts/kanban.ts component:pull
+
+# Publikasikan mockup prototipe halaman ke UI/UX Studio NeoKanban (UiPage)
+npx tsx scripts/kanban.ts page:push docs/ui-governance/pages/<nama>.html
+
+# Tarik seluruh halaman prototipe dari UI/UX Studio ke lokal
+npx tsx scripts/kanban.ts page:pull
+
+# Ambil anotasi review visual (pin & bounding box) dari canvas UI Studio
+npx tsx scripts/kanban.ts ui:annotations
 
 # Sintesis komponen baru sesuai standar token
 npx tsx scripts/kanban.ts component:new <nama-komponen>
-
-# Publikasikan komponen yang telah disetujui ke NeoKanban
-npx tsx scripts/kanban.ts component:publish docs/ui-governance/components/template-<nama>.html
 
 # Query UI/UX Pro Max Design Intelligence (styles, colors, guidelines, charts)
 npx tsx scripts/kanban.ts ui:search "<query>" [--domain <style|color|typography|ux|chart|icons>]
@@ -134,7 +143,14 @@ npx tsx scripts/kanban.ts ui:search "<query>" [--domain <style|color|typography|
 # Hasilkan rekomendasi Design System lengkap dengan UI/UX Pro Max
 npx tsx scripts/kanban.ts ui:design "<produk/industri/kata-kunci>"
 
-# --- 5. Living Handoff Sesi ---
+# --- 5. AI Skill Library NeoKanban ---
+# Lihat katalog paket skill AI yang tersedia di server NeoKanban
+npx tsx scripts/kanban.ts skills:list
+
+# Unduh dan pasang paket skill ke direktori lokal .agents/skills/<slug>/
+npx tsx scripts/kanban.ts skills:pull <slug>
+
+# --- 6. Living Handoff Sesi ---
 # Catat handoff sesi ke docs/HANDOFF.md & sinkronkan ke NeoKanban
 npx tsx scripts/kanban.ts handoff "<nama-sesi>" --summary "Ringkasan milestone..."
 ```

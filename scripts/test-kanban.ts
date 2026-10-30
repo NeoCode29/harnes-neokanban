@@ -124,6 +124,45 @@ try {
   assert.strictEqual(typeof pingResult.message, "string");
   assert.strictEqual(pingResult.ok, false, "Should return ok=false for unreachable server without crashing");
 
+  console.log("🧪 Testing parseComponentMetadata()...");
+  const { parseComponentMetadata, formatAnnotationItem, formatSkillItem } = await import("./kanban.js");
+  const meta = parseComponentMetadata(`
+    <!-- category: FEEDBACK -->
+    <!-- description: Badge status lunas hijau -->
+    <span class="badge badge-success">Lunas</span>
+  `, "template-status-badge.html");
+
+  assert.strictEqual(meta.name, "Status Badge");
+  assert.strictEqual(meta.category, "FEEDBACK");
+  assert.strictEqual(meta.description, "Badge status lunas hijau");
+  assert.ok(meta.htmlContent.includes("badge-success"));
+
+  console.log("🧪 Testing formatAnnotationItem()...");
+  const formattedAnno = formatAnnotationItem({
+    id: "anno-1",
+    type: "PIN",
+    posX: 45.5,
+    posY: 20.0,
+    comment: "Ubah warna tombol menjadi indigo-600",
+    status: "OPEN",
+    targetTitle: "Halaman Invoice",
+  });
+  assert.ok(formattedAnno.includes("📌 PIN"));
+  assert.ok(formattedAnno.includes("(45.5%, 20.0%)"));
+  assert.ok(formattedAnno.includes("Ubah warna tombol"));
+
+  console.log("🧪 Testing formatSkillItem()...");
+  const formattedSkill = formatSkillItem({
+    id: "skill-1",
+    name: "Engineering Discipline",
+    slug: "engineering-discipline",
+    category: "ENGINEERING",
+    description: "TDD and git isolation rules",
+    filesCount: 3,
+  });
+  assert.ok(formattedSkill.includes("Engineering Discipline"));
+  assert.ok(formattedSkill.includes("engineering-discipline"));
+
 } finally {
   if (backupExists && originalConfig !== null) {
     fs.writeFileSync(testConfigPath, originalConfig, "utf-8");
