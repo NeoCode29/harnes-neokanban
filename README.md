@@ -105,3 +105,4 @@ harnes-neokanban/
 ## 📖 Dokumentasi Lengkap
 - Baca [`HARNESS.md`](HARNESS.md) untuk referensi lengkap perintah CLI dan panduan operasional.
 - Baca [`AGENTS.md`](AGENTS.md) untuk aturan cepat instruksi agen AI.
+
