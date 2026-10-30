@@ -925,6 +925,53 @@ export async function pullRemoteSkill(
 }
 
 /**
+ * Resets repository runtime artifacts to prepare clean template state for a new project
+ */
+export function resetTemplate(options: { full?: boolean } = {}): void {
+  console.log("\n🧹 Resetting repository to clean starter template state...");
+
+  // 1. Clean docs/plans/
+  const plansDir = path.resolve(process.cwd(), "docs/plans");
+  if (fs.existsSync(plansDir)) {
+    const files = fs.readdirSync(plansDir);
+    for (const f of files) {
+      if (f.endsWith(".md")) {
+        fs.unlinkSync(path.join(plansDir, f));
+        console.log(`  🗑️ Removed plan: docs/plans/${f}`);
+      }
+    }
+  }
+
+  // 2. Reset .kanban-map.json
+  const mapPath = path.resolve(process.cwd(), ".kanban-map.json");
+  const emptyMap: KanbanMappingLedger = {
+    boardId: "",
+    boardTitle: "",
+    planFile: "",
+    syncedAt: new Date().toISOString(),
+    tasks: {},
+  };
+  fs.writeFileSync(mapPath, JSON.stringify(emptyMap, null, 2), "utf-8");
+  console.log(`  💾 Reset .kanban-map.json to empty state.`);
+
+  // 3. Reset docs/HANDOFF.md to clean template
+  const handoffPath = path.resolve(process.cwd(), "docs/HANDOFF.md");
+  const cleanHandoff = `# Living Session Handoff\n\n> Dokumen ini adalah **Living Source of Truth** status pengerjaan yang **wajib dibaca di awal setiap sesi baru** dan **diperbarui setiap kali menyelesaikan milestone/aktivitas**.\n\n═══════════════════════════════════════════════════════════════════════════\n## 🏁 SESI: [Baru] — starter-template\n═══════════════════════════════════════════════════════════════════════════\n- **Operator / Agent:** Antigravity\n- **Branch Aktif:** \`master\`\n- **Status:** Proyek baru siap dimulai dari template.\n\n### 🚀 Langkah Kerja Berikutnya\n1. Jalankan \`npx tsx scripts/kanban.ts init --board <id-board>\` untuk menghubungkan ke papan NeoKanban.\n2. Sesuaikan informasi proyek di \`docs/context/INDEX.md\` dan \`docs/context/ARCHITECTURE.md\`.\n3. Jalankan \`npx tsx scripts/kanban.ts context:push\` untuk mengunggah konteks awal ke papan.\n\n═══════════════════════════════════════════════════════════════════════════\n`;
+  fs.writeFileSync(handoffPath, cleanHandoff, "utf-8");
+  console.log(`  💾 Reset docs/HANDOFF.md to starter template.`);
+
+  if (options.full) {
+    const cfgPath = path.resolve(process.cwd(), ".neokanban.json");
+    if (fs.existsSync(cfgPath)) {
+      fs.unlinkSync(cfgPath);
+      console.log(`  🗑️ Removed .neokanban.json.`);
+    }
+  }
+
+  console.log("✅ Repository is now a pristine starter template ready to be copied or initialized!\n");
+}
+
+/**
  * Publishes reviewed and approved component template to NeoKanban board context
  */
 export async function publishComponent(
@@ -1859,6 +1906,9 @@ if (isMain) {
         process.exit(1);
       }
       await pullRemoteSkill(arg1);
+    } else if (command === "template:reset") {
+      const full = process.argv.includes("--full");
+      resetTemplate({ full });
     } else if (command === "component:new" || command === "component:scaffold") {
       if (!arg1) {
         console.error("Usage: kanban component:new <componentName>");
@@ -1911,6 +1961,7 @@ if (isMain) {
       console.log("  ui:annotations [boardId]         Fetch visual review pins & annotations from UI Studio");
       console.log("  skills:list                      List available skills from NeoKanban Skill Library");
       console.log("  skills:pull <slug>               Install skill package to local .agents/skills/<slug>/");
+      console.log("  template:reset [--full]          Reset repo artifacts to pristine starter template state");
       console.log("  component:new <name>             Synthesize token-compliant template-[name].html");
       console.log("  ui:search <query> [options]      Query UI/UX Pro Max intelligence (styles, colors, etc)");
       console.log("  ui:design <query>                Generate complete Design System with UI/UX Pro Max");
