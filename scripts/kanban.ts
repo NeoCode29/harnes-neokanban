@@ -41,11 +41,14 @@ export interface KanbanMappingLedger {
   >;
 }
 
+export type ProjectStackType = "monorepo" | "unified" | "backend-only" | "frontend-only";
+
 export interface ProjectConfig {
   apiUrl?: string;
   patToken?: string;
   boardId?: string;
   boardTitle?: string;
+  stackType?: ProjectStackType;
   user?: {
     name?: string;
     username?: string;
@@ -53,6 +56,173 @@ export interface ProjectConfig {
     mentionTag?: string;
   };
   initializedAt?: string;
+}
+
+export interface HarnessBundleFile {
+  path: string;
+  content: string;
+}
+
+export interface HarnessBundle {
+  name: string;
+  version: string;
+  generatedAt: string;
+  description: string;
+  files: HarnessBundleFile[];
+}
+
+/**
+ * Derives appropriate domain tags for NeoKanban cards based on specialist and task title
+ */
+export function deriveDomainTags(agent?: string, title?: string): string[] {
+  const tags: Set<string> = new Set(["antigravity"]);
+  const a = (agent || "").toLowerCase();
+  const t = (title || "").toLowerCase();
+
+  if (a) tags.add(a);
+
+  if (a.includes("frontend") || a.includes("ux-ui") || t.includes("ui") || t.includes("component") || t.includes("page")) {
+    tags.add("frontend");
+    tags.add("ui");
+  }
+
+  if (a.includes("backend") || t.includes("api") || t.includes("endpoint") || t.includes("route") || t.includes("server")) {
+    tags.add("backend");
+    tags.add("api");
+  }
+
+  if (a.includes("database") || t.includes("schema") || t.includes("migration") || t.includes("prisma") || t.includes("sql") || t.includes("model")) {
+    tags.add("database");
+    tags.add("backend");
+  }
+
+  if (a.includes("qa") || a.includes("test") || t.includes("test") || t.includes("spec")) {
+    tags.add("testing");
+    tags.add("qa");
+  }
+
+  if (a.includes("security") || t.includes("audit") || t.includes("secret") || t.includes("auth")) {
+    tags.add("security");
+  }
+
+  return Array.from(tags);
+}
+
+/**
+ * Compiles all harness template files into a single in-memory / JSON distributable bundle
+ */
+export function createHarnessBundle(rootDir: string = process.cwd()): HarnessBundle {
+  const pkgPath = path.resolve(rootDir, "package.json");
+  let version = "1.0.0";
+  let description = "Lean Agentic Harness Bundle";
+  if (fs.existsSync(pkgPath)) {
+    try {
+      const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf-8"));
+      version = pkg.version || version;
+      description = pkg.description || description;
+    } catch {}
+  }
+
+  const filesToInclude: string[] = [
+    "AGENTS.md",
+    "HARNESS.md",
+    "README.md",
+    "package.json",
+    "tsconfig.json",
+    ".gitignore",
+  ];
+
+  const dirsToInclude: string[] = [
+    ".agents",
+    "docs/context",
+    "docs/templates",
+    "docs/ui-governance",
+    "scripts",
+  ];
+
+  const bundleFiles: HarnessBundleFile[] = [];
+
+  function scanDir(dirRelative: string) {
+    const dirFull = path.resolve(rootDir, dirRelative);
+    if (!fs.existsSync(dirFull)) return;
+
+    const entries = fs.readdirSync(dirFull, { withFileTypes: true });
+    for (const entry of entries) {
+      const relPath = path.join(dirRelative, entry.name).replace(/\\/g, "/");
+      if (
+        entry.name === "node_modules" ||
+        entry.name === "dist" ||
+        entry.name === ".git" ||
+        entry.name.endsWith(".zip") ||
+        relPath.startsWith("docs/plans/") ||
+        relPath === ".kanban-map.json" ||
+        relPath === ".neokanban.json"
+      ) {
+        continue;
+      }
+
+      if (entry.isDirectory()) {
+        scanDir(relPath);
+      } else if (entry.isFile()) {
+        try {
+          const content = fs.readFileSync(path.resolve(rootDir, relPath), "utf-8");
+          bundleFiles.push({ path: relPath, content });
+        } catch {}
+      }
+    }
+  }
+
+  for (const f of filesToInclude) {
+    const fPath = path.resolve(rootDir, f);
+    if (fs.existsSync(fPath)) {
+      try {
+        const content = fs.readFileSync(fPath, "utf-8");
+        bundleFiles.push({ path: f, content });
+      } catch {}
+    }
+  }
+
+  for (const d of dirsToInclude) {
+    scanDir(d);
+  }
+
+  return {
+    name: "harnes-neokanban",
+    version,
+    generatedAt: new Date().toISOString(),
+    description,
+    files: bundleFiles,
+  };
+}
+
+/**
+ * Unpacks a harness bundle into a target workspace directory
+ */
+export function unpackHarnessBundle(
+  bundle: HarnessBundle,
+  targetDir: string,
+  options: { overwrite?: boolean; stackType?: string } = {}
+): { installedFiles: string[]; skippedFiles: string[] } {
+  const installedFiles: string[] = [];
+  const skippedFiles: string[] = [];
+
+  for (const file of bundle.files) {
+    const dest = path.resolve(targetDir, file.path);
+    if (fs.existsSync(dest) && !options.overwrite) {
+      skippedFiles.push(file.path);
+      continue;
+    }
+
+    const parent = path.dirname(dest);
+    if (!fs.existsSync(parent)) {
+      fs.mkdirSync(parent, { recursive: true });
+    }
+
+    fs.writeFileSync(dest, file.content, "utf-8");
+    installedFiles.push(file.path);
+  }
+
+  return { installedFiles, skippedFiles };
 }
 
 /**
@@ -309,6 +479,7 @@ export async function initProject(options: {
   role?: string;
   username?: string;
   offline?: boolean;
+  stack?: ProjectStackType;
 } = {}): Promise<ProjectConfig> {
   console.log("\n🚀 Initializing First-Time Project Setup for NeoKanban...");
 
@@ -329,6 +500,7 @@ export async function initProject(options: {
     patToken: options.patToken || existingCfg.patToken,
     boardId: options.boardId || existingCfg.boardId,
     boardTitle: options.boardTitle || existingCfg.boardTitle,
+    stackType: options.stack || existingCfg.stackType || "unified",
     user: {
       name: options.username || existingCfg.user?.name || "Kresna",
       username: options.username || existingCfg.user?.username || "kresna",
@@ -337,6 +509,22 @@ export async function initProject(options: {
     },
     initializedAt: new Date().toISOString(),
   };
+
+  // Scaffolding stack directories if monorepo
+  if (config.stackType === "monorepo") {
+    const clientDir = path.resolve(process.cwd(), "client");
+    const serverDir = path.resolve(process.cwd(), "server");
+    if (!fs.existsSync(clientDir)) {
+      fs.mkdirSync(clientDir, { recursive: true });
+      fs.writeFileSync(path.join(clientDir, ".gitkeep"), "", "utf-8");
+      console.log(`📁 Scaffolding monorepo: client/ directory initialized.`);
+    }
+    if (!fs.existsSync(serverDir)) {
+      fs.mkdirSync(serverDir, { recursive: true });
+      fs.writeFileSync(path.join(serverDir, ".gitkeep"), "", "utf-8");
+      console.log(`📁 Scaffolding monorepo: server/ directory initialized.`);
+    }
+  }
 
   // 3. Connect to board & pull context (if ping passed)
   if (ping.ok) {
@@ -1557,7 +1745,7 @@ export async function publishPlan(
           title: cardTitle,
           description,
           priority: task.priority || "MEDIUM",
-          tags: [task.agent || "specialist", "antigravity"],
+          tags: deriveDomainTags(task.agent, task.taskTitle),
         },
       });
       const card = cardRes.card || cardRes;
@@ -1681,6 +1869,21 @@ export function runPreFlightTests(options: { preflightCmd?: string; skipPrefligh
           cmd = "npm test";
         }
       } catch {}
+    }
+  }
+
+  if (!cmd) {
+    const clientPkg = path.resolve(process.cwd(), "client/package.json");
+    const serverPkg = path.resolve(process.cwd(), "server/package.json");
+    const hasClient = fs.existsSync(clientPkg);
+    const hasServer = fs.existsSync(serverPkg);
+
+    if (hasClient && hasServer) {
+      cmd = "npm --prefix client test --if-present && npm --prefix server test --if-present";
+    } else if (hasClient) {
+      cmd = "npm --prefix client test";
+    } else if (hasServer) {
+      cmd = "npm --prefix server test";
     }
   }
 
@@ -1819,9 +2022,20 @@ if (isMain) {
       const role = roleIdx !== -1 ? process.argv[roleIdx + 1] : undefined;
       const userIdx = process.argv.indexOf("--username");
       const username = userIdx !== -1 ? process.argv[userIdx + 1] : undefined;
+      const stackIdx = process.argv.indexOf("--stack");
+      const stack = stackIdx !== -1 ? (process.argv[stackIdx + 1] as ProjectStackType) : undefined;
       const offline = process.argv.includes("--offline");
 
-      await initProject({ apiUrl, patToken, boardId, boardTitle, role, username, offline });
+      await initProject({ apiUrl, patToken, boardId, boardTitle, role, username, stack, offline });
+    } else if (command === "bundle") {
+      const distDir = path.resolve(process.cwd(), "dist");
+      if (!fs.existsSync(distDir)) fs.mkdirSync(distDir, { recursive: true });
+      const bundle = createHarnessBundle();
+      const bundlePath = path.join(distDir, "harness-bundle.json");
+      fs.writeFileSync(bundlePath, JSON.stringify(bundle, null, 2), "utf-8");
+      console.log(`\n📦 Harness successfully bundled into: ${bundlePath}`);
+      console.log(`📄 Total files bundled: ${bundle.files.length}`);
+      console.log(`💡 Ready to be imported or served by NeoKanban MCP daemon!\n`);
     } else if (command === "ping") {
       const ping = await pingNeoKanban();
       console.log(ping.ok ? `✅ ${ping.message}` : `❌ ${ping.message}`);
@@ -1940,7 +2154,8 @@ if (isMain) {
     } else {
       console.log("\n⚡ Lean NeoKanban Sync CLI");
       console.log("Commands:");
-      console.log("  init [--url <url>] [--board <id>] First-time project setup & wizard");
+      console.log("  init [--stack <type>] [--board]  First-time project setup (monorepo/unified/backend/frontend)");
+      console.log("  bundle                           Compile harness into dist/harness-bundle.json for MCP");
       console.log("  ping                             Ping / healthcheck NeoKanban server");
       console.log("  publish <planPath> [boardId]     Publish plan tasks to 'To Do' column");
       console.log("  start <cardId>                   Move card to 'In Progress' + log handoff");

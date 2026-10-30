@@ -6,6 +6,7 @@
   "type": "module",
   "scripts": {
     "kanban": "npx tsx scripts/kanban.ts",
+    "bundle": "npx tsx scripts/kanban.ts bundle",
     "test": "npx tsx scripts/test-kanban.ts"
   },
   "keywords": ["antigravity", "agentic-harness", "neokanban", "tdd"],

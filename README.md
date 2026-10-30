@@ -28,17 +28,25 @@ cd ../nama-proyek-baru
 npm install
 ```
 
-### 3. Inisialisasi Koneksi ke NeoKanban
-Hubungkan proyek baru ke board NeoKanban yang sesuai:
+### 3. Inisialisasi Koneksi ke NeoKanban & Pilihan Stack
+Hubungkan proyek baru ke board NeoKanban dengan pilihan arsitektur:
 
 ```bash
 npx tsx scripts/kanban.ts init \
   --url "https://neoproject.my.id/neokanban" \
   --board "<ID_BOARD_NEOKANBAN_BARU>" \
   --username "kresna" \
-  --role "all-roles"
+  --role "all-roles" \
+  --stack "monorepo" # pilihan: monorepo | unified | backend-only | frontend-only
 ```
-*(File `.neokanban.json` akan otomatis terbuat dan dimasukkan ke `.gitignore` agar rahasia aman).*
+*(Jika memilih `monorepo`, folder skeleton `client/` dan `server/` akan otomatis disiapkan).*
+
+### 4. Ekspor / Bundling untuk NeoKanban MCP Daemon
+Untuk mendistribusikan harness ke daemon MCP NeoKanban:
+```bash
+npm run bundle
+# Menghasilkan dist/harness-bundle.json yang siap diekstrak oleh tool setup_project_harness
+```
 
 ### 4. Sesuaikan Konteks Proyek
 Isi informasi arsitektur dan bisnis proyek Anda di:

@@ -163,6 +163,29 @@ try {
   assert.ok(formattedSkill.includes("Engineering Discipline"));
   assert.ok(formattedSkill.includes("engineering-discipline"));
 
+  console.log("🧪 Testing deriveDomainTags()...");
+  const { deriveDomainTags, createHarnessBundle } = await import("./kanban.js");
+  const feTags = deriveDomainTags("frontend-specialist", "Build interactive table");
+  assert.ok(feTags.includes("frontend"), "Should include frontend tag");
+  assert.ok(feTags.includes("ui"), "Should include ui tag");
+  assert.ok(feTags.includes("antigravity"), "Should include antigravity tag");
+
+  const beTags = deriveDomainTags("backend-specialist", "Create invoice API");
+  assert.ok(beTags.includes("backend"), "Should include backend tag");
+  assert.ok(beTags.includes("api"), "Should include api tag");
+
+  const dbTags = deriveDomainTags("database-specialist", "Run prisma migration");
+  assert.ok(dbTags.includes("database"), "Should include database tag");
+
+  console.log("🧪 Testing createHarnessBundle()...");
+  const bundle = createHarnessBundle();
+  assert.strictEqual(bundle.name, "harnes-neokanban");
+  assert.ok(bundle.files.length > 5, "Bundle should contain core template files");
+  const hasAgents = bundle.files.some((f: any) => f.path === "AGENTS.md");
+  const hasHarness = bundle.files.some((f: any) => f.path === "HARNESS.md");
+  assert.ok(hasAgents, "Bundle must include AGENTS.md");
+  assert.ok(hasHarness, "Bundle must include HARNESS.md");
+
 } finally {
   if (backupExists && originalConfig !== null) {
     fs.writeFileSync(testConfigPath, originalConfig, "utf-8");
