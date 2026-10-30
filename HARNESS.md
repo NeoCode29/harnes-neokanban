@@ -8,26 +8,25 @@ Terintegrasi penuh dengan **NeoKanban**, **4 Core Lean Skills**, tata kelola **U
 
 ## 1. Filosofi & Prinsip Inti
 
-1. **Pahami Dahulu & Bertanya Interaktif (Zero Information Gaps)**:
+1. **Universal Root `AGENTS.md` (Instruction Budget < 100 Lines)**:
+   - Standar terbuka AAIF (Agentic AI Foundation) sebagai antarmuka ringkas agen AI di root proyek.
+2. **Pahami Dahulu & Bertanya Interaktif (Zero Information Gaps)**:
    - Telusuri codebase dan arsitektur terlebih dahulu secara menyeluruh.
    - Ajukan pertanyaan interaktif terstruktur (`ask_question`) sebelum menyusun solusi atau rencana kerja.
-2. **Tata Kelola Konsistensi UI (Design Tokens & Component Registry)**:
-   - Menghindari inkonsistensi antarmuka saat membangun tampilan frontend.
-   - Menggunakan acuan tunggal `token-design.json` (warna, font, spasi) dan repositori template komponen `template-[nama].html`.
-3. **Single Living Handoff (`docs/HANDOFF.md`)**:
-   - Status kerja dipelihara dalam 1 berkas tunggal `docs/HANDOFF.md` dan disinkronkan ke Living Context NeoKanban.
-   - Tidak ada tumpukan file log harian (`zero clutter`).
-4. **Disiplin TDD & Isolasi Ruang Kerja Git**:
-   - Seluruh kode logika dikembangkan melalui siklus **Red-Green-Refactor**.
-   - Dilarang bekerja langsung di branch utama (`master`/`main`). Selalu gunakan feature branch atau git worktree.
-5. **Safe Review Gate (Larangan Auto-Done)**:
-   - Agen dilarang keras memindahkan kartu langsung ke `Done`.
-   - Kartu yang seluruh langkahnya selesai wajib dipindahkan ke kolom `Review` dengan laporan verifikasi terstruktur di komentar. Pemindahan ke `Done` hanya dilakukan oleh manusia.
-6. **Struktur Ramping 4 Core Skills & Spesialis Domain**:
-   - Menyatukan alur kerja ke dalam 4 skill inti yang terfokus: `kanban-workflow`, `engineering-discipline`, `ui-ux-governance`, dan `agent-orchestration`.
-7. **Wajib Membangun Konteks Fitur Fungsional (`FEATURE_*.md`)**:
-   - Setelah memahami codebase dan menyelesaikan klarifikasi interaktif, agen **WAJIB** mengidentifikasi setiap domain/modul fitur dari kebutuhan bisnis/dokumen raws dan menyusun dokumen spesifikasi fitur per modul (`docs/context/FEATURE_[NAMA_FITUR].md`) mengacu pada `FEATURE_TEMPLATE.md`.
-   - Agen **DILARANG KERAS** langsung membuat Implementation Plan (`docs/plans/`) atau melompat ke penulisan kode sebelum Konteks Fitur Fungsional tersusun lengkap dan didaftarkan pada matriks `docs/context/INDEX.md`.
+3. **TELOS Intent Alignment & Konteks Fitur Fungsional (`FEATURE_*.md`)**:
+   - Setiap fitur membandingkan **Current State** dan **Ideal State** serta kriteria verifikasi bebas asumsi (**Falsifiable Verification Criteria**).
+   - Agen **DILARANG KERAS** melompat ke penulisan plan atau kode sebelum dokumen spesifikasi fitur per modul (`docs/context/FEATURE_[NAMA_FITUR].md`) terdaftar di `docs/context/INDEX.md`.
+4. **Alur Kerja 3-Stage Agent Crew (Planner → Worker → Checker)**:
+   - **Planner**: Merancang arsitektur & breakdown task dengan dependensi terukur.
+   - **Worker**: Menulis kode di branch/worktree terisolasi dengan siklus TDD (Red-Green-Refactor).
+   - **Checker**: Mengaudit kode secara independen (`qa-tester`), menjalankan audit keamanan & test suite.
+5. **ATLAS Pre-Flight Test Gatekeeper & Safe Review Gate**:
+   - CLI `scripts/kanban.ts review` secara otomatis memvalidasi kelulusan test suite lokal sebelum mengizinkan kartu berpindah ke `Review`.
+   - Agen dilarang keras melakukan Auto-Done. Pemindahan ke `Done` hanya dilakukan oleh manusia/user.
+6. **Tata Kelola Konsistensi UI (Design Tokens & Component Registry)**:
+   - Acuan tunggal `token-design.json` (warna, font, spasi) dan repositori template komponen `template-[nama].html`.
+7. **Single Living Handoff (`docs/HANDOFF.md`)**:
+   - Status kerja dipelihara dalam 1 berkas tunggal `docs/HANDOFF.md` dan disinkronkan ke Living Context NeoKanban (zero clutter).
 
 ---
 
@@ -107,8 +106,8 @@ npx tsx scripts/kanban.ts start <cardId>
 # Centang checklist subtask pada kartu
 npx tsx scripts/kanban.ts check <cardId> "Step 1"
 
-# Pindahkan kartu ke kolom Review dengan laporan pengujian
-npx tsx scripts/kanban.ts review <cardId> --report "Seluruh unit test lulus 100%"
+# Pindahkan kartu ke kolom Review (otomatis menjalankan Pre-Flight Test Gatekeeper)
+npx tsx scripts/kanban.ts review <cardId> --report "Seluruh unit test lulus 100%" [--skip-preflight] [--preflight-cmd <cmd>]
 
 # --- 4. Tata Kelola Token & Komponen UI ---
 # Pengecekan token design di NeoKanban

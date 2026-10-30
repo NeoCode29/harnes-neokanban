@@ -1,33 +1,45 @@
 ---
 name: agent-orchestration
-description: Multi-agent coordination, subagent task delegation with clean context, two-stage reviews, and safe parallel execution.
+description: Multi-agent coordination, 3-stage crew pipeline (Planner -> Worker -> Checker), subagent task delegation with clean context, two-stage reviews, and safe parallel execution.
 ---
 
 # Agent Orchestration Skill
 
-Gunakan skill ini untuk mengatur delegasi pekerjaan ke subagent, mengelola eksekusi paralel untuk task-task independen, dan menjalankan protokol review dua tahap.
+Gunakan skill ini untuk mengatur delegasi pekerjaan ke subagent, mengelola alur kerja **3-Stage Agent Crew (Planner → Worker → Checker)**, mengelola eksekusi paralel untuk task-task independen, dan menjalankan gerbang verifikasi sebelum review.
 
 ---
 
-## 1. Pendelegasian Task ke Subagent (Clean Context)
+## 1. Alur Kerja 3-Stage Agent Crew
 
-- **One Task, One Subagent**: Setiap task dari kartu NeoKanban harus didelegasikan kepada satu subagent dengan instruksi yang spesifik, berkas target terdefinisi, dan ekspektasi hasil yang jelas.
-- **Batasan Konteks**: Hindari memasukkan seluruh riwayat percakapan panjang ke prompt subagent. Berikan hanya konteks yang relevan:
-  1. Spesifikasi task & kriteria penerimaan (acceptance criteria).
-  2. Daftar file yang boleh dibuat/diedit (`Files:` section).
-  3. Perintah verifikasi/test yang harus dijalankan (`npm test`).
+```
+┌─────────────────┐       ┌─────────────────┐       ┌─────────────────┐
+│     PLANNER     │ ────> │     WORKER      │ ────> │     CHECKER     │
+│                 │       │                 │       │                 │
+│ • Context Spec  │       │ • Isolated Git  │       │ • Pre-Flight    │
+│ • TELOS Intent  │       │ • TDD Cycle     │       │ • QA & Audit    │
+│ • Plan / DAG    │       │ • Clean Context │       │ • Review Report │
+└─────────────────┘       └─────────────────┘       └─────────────────┘
+```
+
+1. **Stage 1: Planner (`agent-orchestration`)**:
+   - Membaca kebutuhan bisnis, mendokumentasikan modul ke `docs/context/FEATURE_*.md` dengan format TELOS (Current State vs Ideal State).
+   - Memecah pekerjaan ke dalam subtask atomik pada `docs/plans/*.md` dan mempublikasikannya ke papan NeoKanban.
+2. **Stage 2: Worker (Spesialis Domain)**:
+   - Didelegasikan ke peran spesifik (`frontend-specialist`, `backend-specialist`, `database-specialist`).
+   - Menerapkan isolasi Git (`git checkout -b feat/...`).
+   - Melakukan siklus **Red-Green-Refactor** untuk tiap langkah.
+3. **Stage 3: Checker (`qa-tester` / `security-audit`)**:
+   - Berperan sebagai auditor independen (tidak menulis fitur, melainkan memverifikasi).
+   - Menjalankan test suites lengkap, edge case analysis, dan Trail of Bits security scan.
+   - Menyiapkan ringkasan bukti pengujian objektif untuk diserahkan ke Safe Review Gate.
 
 ---
 
-## 2. Review Dua Tahap (Two-Stage Review)
+## 2. Pendelegasian Subagent dengan Konteks Bersih (Clean Context)
 
-Sebelum subagent menyelesaikan tugas:
-1. **Tahap 1: Verifikasi Spesifikasi**:
-   - Apakah implementasi memenuhi seluruh checklist TDD pada kartu?
-   - Apakah ada ruang lingkup yang terlewat atau menyimpang?
-2. **Tahap 2: Kualitas Kode & Regresi**:
-   - Apakah kode mematuhi standar kebersihan, keamanan, dan efisiensi?
-   - Apakah seluruh test suite lulus 100% tanpa regresi?
+- **Instruction Budget**: Batasi prompt instruksi subagent agar padat (< 100 baris instruksi inti), mengacu pada standar `AGENTS.md`.
+- **Target File Terisolasi**: Tentukan secara eksplisit daftar file yang boleh dibuat/diedit (`Files:` section).
+- **Perintah Verifikasi Jelas**: Tentukan command testing spesifik yang harus dieksekusi subagent (`npm test -- <path>`).
 
 ---
 

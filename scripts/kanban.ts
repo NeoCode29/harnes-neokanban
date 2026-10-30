@@ -1257,13 +1257,58 @@ export async function checkStep(
 }
 
 /**
+ * Runs pre-flight test gatekeeper (inspired by ATLAS & CodeAF)
+ */
+export function runPreFlightTests(options: { preflightCmd?: string; skipPreflight?: boolean } = {}): boolean {
+  if (options.skipPreflight) {
+    console.log("⚠️ Pre-flight test skipped via --skip-preflight.");
+    return true;
+  }
+
+  let cmd = options.preflightCmd;
+  if (!cmd) {
+    const pkgPath = path.resolve(process.cwd(), "package.json");
+    if (fs.existsSync(pkgPath)) {
+      try {
+        const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf-8"));
+        if (pkg.scripts && pkg.scripts.test && !pkg.scripts.test.includes("no test specified")) {
+          cmd = "npm test";
+        }
+      } catch {}
+    }
+  }
+
+  if (!cmd) {
+    console.log("ℹ️ No test suite configured in package.json. Pre-flight check passed.");
+    return true;
+  }
+
+  console.log(`\n🧪 [ATLAS Pre-Flight Gatekeeper] Executing test suite: "${cmd}"...`);
+  const result = spawnSync(cmd, { stdio: "inherit", shell: true });
+  if (result.status !== 0) {
+    console.error(`\n❌ [ATLAS Pre-Flight Gatekeeper Failed]: Test suite returned non-zero exit code (${result.status}).`);
+    console.error(`🛑 Transition to 'Review' REJECTED. Please fix failing tests before submitting to review.`);
+    return false;
+  }
+
+  console.log(`✅ [ATLAS Pre-Flight Gatekeeper Passed]: Test suite passed 100%!\n`);
+  return true;
+}
+
+/**
  * Move card to 'Review' with verification proof comment and record activity handoff (Enforces Safe Review Gate)
  */
 export async function reviewTask(
   cardId: string,
   reportContent: string,
-  options: { apiUrl?: string; token?: string; boardId?: string } = {}
+  options: { apiUrl?: string; token?: string; boardId?: string; preflightCmd?: string; skipPreflight?: boolean } = {}
 ) {
+  // Pre-flight test gatekeeper (ATLAS pattern)
+  const passed = runPreFlightTests(options);
+  if (!passed) {
+    throw new Error("Pre-flight tests failed. Cannot move card to Review.");
+  }
+
   await transitionToColumn(cardId, "Review", options);
 
   // Attach verification proof comment
@@ -1394,7 +1439,7 @@ if (isMain) {
       await checkStep(arg1, arg2);
     } else if (command === "review") {
       if (!arg1) {
-        console.error("Usage: kanban review <card-id> [--report <text>]");
+        console.error("Usage: kanban review <card-id> [--report <text>] [--skip-preflight] [--preflight-cmd <cmd>]");
         process.exit(1);
       }
       const reportIdx = process.argv.indexOf("--report");
@@ -1402,7 +1447,11 @@ if (isMain) {
         reportIdx !== -1 && process.argv[reportIdx + 1]
           ? process.argv[reportIdx + 1]
           : "Verification tests passed 100%.";
-      await reviewTask(arg1, report);
+      const skipPreflight = process.argv.includes("--skip-preflight");
+      const cmdIdx = process.argv.indexOf("--preflight-cmd");
+      const preflightCmd = cmdIdx !== -1 && process.argv[cmdIdx + 1] ? process.argv[cmdIdx + 1] : undefined;
+
+      await reviewTask(arg1, report, { skipPreflight, preflightCmd });
     } else if (command === "handoff") {
       if (!arg1) {
         console.error("Usage: kanban handoff <session-name> [--summary <text>] [--steps <comma-separated>]");
@@ -1467,7 +1516,7 @@ if (isMain) {
       console.log("  publish <planPath> [boardId]     Publish plan tasks to 'To Do' column");
       console.log("  start <cardId>                   Move card to 'In Progress' + log handoff");
       console.log("  check <cardId> <stepPattern>     Mark TDD checklist step completed");
-      console.log("  review <cardId> [--report text]  Move card to 'Review' + attach proof + log handoff");
+      console.log("  review <cardId> [--report text] [--skip-preflight] [--preflight-cmd <cmd>]  Move card to 'Review' + pre-flight test + report");
       console.log("  handoff <sessionName>            Save handoff to docs/HANDOFF.md & sync to NeoKanban");
       console.log("  security:audit                   Run Trail of Bits security scan (secrets, CVEs, SAST)");
       console.log("  context:check [boardId]          Check completeness of project context files");
