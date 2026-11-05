@@ -271,13 +271,27 @@ export async function setupMcpConfig(options: { targetDir?: string } = {}): Prom
   let serverPath = localMcpServer;
 
   if (!fs.existsSync(localMcpServer)) {
-    // Fallback: template dist atau workspace
-    const fallbackPath = "C:/Users/kresna/Documents/Workspace/neokanban/mcp/dist/server.js";
-    if (fs.existsSync(fallbackPath)) {
-      serverPath = fallbackPath;
-    } else {
-      console.warn("⚠️ Standalone server.js tidak ditemukan di:", localMcpServer);
-      console.warn("Pastikan berkas .agents/mcp-servers/neokanban-mcp/server.js tersedia.");
+    console.log("⬇️ Berkas server.js lokal tidak ditemukan. Mengunduh server.js (32 tools) terbaru dari GitHub...");
+    try {
+      const parentDir = path.dirname(localMcpServer);
+      if (!fs.existsSync(parentDir)) {
+        fs.mkdirSync(parentDir, { recursive: true });
+      }
+      const remoteUrl = "https://raw.githubusercontent.com/NeoCode29/neokanban/master/mcp/dist/server.js";
+      const resp = await fetch(remoteUrl);
+      if (resp.ok) {
+        const scriptContent = await resp.text();
+        fs.writeFileSync(localMcpServer, scriptContent, "utf-8");
+        console.log(`  ✓ Berhasil mengunduh server.js ke: ${localMcpServer}`);
+      } else {
+        throw new Error(`HTTP ${resp.status}: ${resp.statusText}`);
+      }
+    } catch (err: any) {
+      console.warn("  ⚠️ Gagal mengunduh otomatis:", err.message);
+      const fallbackPath = "C:/Users/kresna/Documents/Workspace/neokanban/mcp/dist/server.js";
+      if (fs.existsSync(fallbackPath)) {
+        serverPath = fallbackPath;
+      }
     }
   }
 
