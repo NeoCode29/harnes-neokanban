@@ -177,6 +177,19 @@ try {
   const dbTags = deriveDomainTags("database-specialist", "Run prisma migration");
   assert.ok(dbTags.includes("database"), "Should include database tag");
 
+  console.log("🧪 Testing publishComponentToUiStudio and syncUiGovernance exports...");
+  const { publishComponentToUiStudio, publishComponent, syncUiGovernance } = await import("./kanban.js");
+  assert.strictEqual(typeof publishComponentToUiStudio, "function");
+  assert.strictEqual(typeof publishComponent, "function");
+  assert.strictEqual(typeof syncUiGovernance, "function");
+
+  const syncResult = await syncUiGovernance({
+    boardId: "test-board-123",
+    targetDir: path.resolve(process.cwd(), "docs/ui-governance/components"),
+  });
+  assert.strictEqual(typeof syncResult.pagesSynced, "number");
+  assert.strictEqual(typeof syncResult.componentsSynced, "number");
+
   console.log("🧪 Testing createHarnessBundle()...");
   const bundle = createHarnessBundle();
   assert.strictEqual(bundle.name, "harnes-neokanban");

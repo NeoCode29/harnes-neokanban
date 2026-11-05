@@ -120,6 +120,7 @@ npx tsx scripts/kanban.ts tokens:pull
 npx tsx scripts/kanban.ts tokens:push
 
 # Publikasikan komponen ke entitas UI/UX Studio NeoKanban (UiComponent)
+npx tsx scripts/kanban.ts ui:sync
 npx tsx scripts/kanban.ts component:publish docs/ui-governance/components/template-<nama>.html
 
 # Tarik seluruh komponen dari UI/UX Studio NeoKanban ke direktori lokal

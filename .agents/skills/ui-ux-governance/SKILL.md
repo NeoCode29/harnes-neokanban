@@ -49,8 +49,11 @@ npx tsx scripts/kanban.ts component:check <nama-komponen>
 # Sintesis komponen baru sesuai standar token
 npx tsx scripts/kanban.ts component:new <nama-komponen>
 
-# Publikasikan komponen yang disetujui ke NeoKanban
+# Publikasikan komponen yang disetujui ke UI Studio NeoKanban
 npx tsx scripts/kanban.ts component:publish docs/ui-governance/components/template-<nama>.html
+
+# Sinkronisasi massal seluruh template komponen & dashboard ke UI Studio
+npx tsx scripts/kanban.ts ui:sync
 
 # Query Design Intelligence UI/UX Pro Max (styles, colors, fonts, UX guidelines, charts)
 npx tsx scripts/kanban.ts ui:search "<query>" [--domain <style|color|typography|ux|chart|icons>]

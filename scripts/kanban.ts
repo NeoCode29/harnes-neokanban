@@ -120,7 +120,7 @@ export function createHarnessBundle(rootDir: string = process.cwd()): HarnessBun
       const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf-8"));
       version = pkg.version || version;
       description = pkg.description || description;
-    } catch {}
+    } catch { }
   }
 
   const filesToInclude: string[] = [
@@ -167,7 +167,7 @@ export function createHarnessBundle(rootDir: string = process.cwd()): HarnessBun
         try {
           const content = fs.readFileSync(path.resolve(rootDir, relPath), "utf-8");
           bundleFiles.push({ path: relPath, content });
-        } catch {}
+        } catch { }
       }
     }
   }
@@ -178,7 +178,7 @@ export function createHarnessBundle(rootDir: string = process.cwd()): HarnessBun
       try {
         const content = fs.readFileSync(fPath, "utf-8");
         bundleFiles.push({ path: f, content });
-      } catch {}
+      } catch { }
     }
   }
 
@@ -247,6 +247,130 @@ export function saveProjectConfig(config: ProjectConfig): void {
   const cfgPath = path.resolve(process.cwd(), ".neokanban.json");
   fs.writeFileSync(cfgPath, JSON.stringify(config, null, 2), "utf-8");
   console.log(`💾 Project NeoKanban configuration saved to: ${cfgPath}`);
+}
+
+/**
+ * Auto-configures IDE MCP settings (Antigravity IDE, Claude Desktop, Cursor)
+ * to connect directly to NeoKanban without manual configuration.
+ */
+export async function setupMcpConfig(options: { targetDir?: string } = {}): Promise<void> {
+  const rootDir = options.targetDir ? path.resolve(process.cwd(), options.targetDir) : process.cwd();
+  const cfg = loadProjectConfig();
+
+  const apiUrl = cfg?.apiUrl || process.env.NEOKANBAN_API_URL || "https://neoproject.my.id/neokanban";
+  const patToken = cfg?.patToken || process.env.NEOKANBAN_PAT;
+
+  if (!patToken) {
+    console.error("❌ Token PAT belum ditemukan di .neokanban.json atau NEOKANBAN_PAT!");
+    console.error("💡 Buat token PAT di NeoKanban (Settings > AI Tokens), lalu jalankan: kanban init");
+    process.exit(1);
+  }
+
+  // Cari file server.js: utamakan .agents/mcp-servers/neokanban-mcp/server.js
+  const localMcpServer = path.resolve(rootDir, ".agents/mcp-servers/neokanban-mcp/server.js");
+  let serverPath = localMcpServer;
+
+  if (!fs.existsSync(localMcpServer)) {
+    // Fallback: template dist atau workspace
+    const fallbackPath = "C:/Users/kresna/Documents/Workspace/neokanban/mcp/dist/server.js";
+    if (fs.existsSync(fallbackPath)) {
+      serverPath = fallbackPath;
+    } else {
+      console.warn("⚠️ Standalone server.js tidak ditemukan di:", localMcpServer);
+      console.warn("Pastikan berkas .agents/mcp-servers/neokanban-mcp/server.js tersedia.");
+    }
+  }
+
+  const normalizedServerPath = serverPath.replace(/\\/g, "/");
+
+  console.log("\n🚀 Mengonfigurasi Otomatis NeoKanban MCP Server untuk IDE...\n");
+  console.log(`  - Target API URL : ${apiUrl}`);
+  console.log(`  - Token Hint     : ${patToken.slice(0, 16)}...`);
+  console.log(`  - Server Script  : ${normalizedServerPath}\n`);
+
+  const serverEntry = {
+    command: "node",
+    args: [normalizedServerPath],
+    env: {
+      NEOKANBAN_API_URL: apiUrl,
+      NEOKANBAN_PAT: patToken,
+    },
+    disabled: false,
+  };
+
+  const homeDir = process.env.USERPROFILE || process.env.HOME || "";
+  const appData = process.env.APPDATA || (process.platform === "darwin" ? path.join(homeDir, "Library/Application Support") : "");
+
+  interface TargetIde {
+    name: string;
+    filePath: string;
+    alwaysCreate?: boolean;
+  }
+
+  const targets: TargetIde[] = [
+    {
+      name: "Antigravity IDE",
+      filePath: path.join(homeDir, ".gemini/antigravity-ide/mcp_config.json"),
+      alwaysCreate: true,
+    },
+    {
+      name: "Claude Desktop",
+      filePath: path.join(appData, "Claude/claude_desktop_config.json"),
+      alwaysCreate: false,
+    },
+    {
+      name: "Cursor (Project Workspace)",
+      filePath: path.join(rootDir, ".cursor/mcp.json"),
+      alwaysCreate: false,
+    },
+    {
+      name: "Cursor (Global)",
+      filePath: path.join(homeDir, ".cursor/mcp.json"),
+      alwaysCreate: false,
+    },
+  ];
+
+  let successCount = 0;
+
+  for (const t of targets) {
+    const parentDir = path.dirname(t.filePath);
+    // Hanya tulis jika directory IDE ada atau alwaysCreate (seperti Antigravity)
+    if (t.alwaysCreate || fs.existsSync(parentDir)) {
+      try {
+        if (!fs.existsSync(parentDir)) {
+          fs.mkdirSync(parentDir, { recursive: true });
+        }
+
+        let data: any = { mcpServers: {} };
+        if (fs.existsSync(t.filePath)) {
+          try {
+            data = JSON.parse(fs.readFileSync(t.filePath, "utf-8"));
+          } catch {
+            data = { mcpServers: {} };
+          }
+        }
+
+        if (!data.mcpServers || typeof data.mcpServers !== "object") {
+          data.mcpServers = {};
+        }
+
+        data.mcpServers.neokanban = serverEntry;
+
+        fs.writeFileSync(t.filePath, JSON.stringify(data, null, 2), "utf-8");
+        console.log(`  ✅ [${t.name}] Berhasil diatur di: ${t.filePath}`);
+        successCount++;
+      } catch (err: any) {
+        console.warn(`  ⚠️ Gagal mengatur ${t.name}: ${err.message}`);
+      }
+    }
+  }
+
+  if (successCount > 0) {
+    console.log(`\n🎉 Selesai! MCP NeoKanban berhasil disetel otomatis di ${successCount} konfigurasi IDE.`);
+    console.log("💡 Teman Anda cukup melakukan reload/restart IDE untuk langsung menggunakan 32 tool NeoKanban.\n");
+  } else {
+    console.log("\n⚠️ Tidak ditemukan lokasi config IDE. Anda dapat menyalin konfigurasi JSON di atas secara manual.");
+  }
 }
 
 /**
@@ -838,9 +962,9 @@ export function formatSkillItem(skill: {
 }
 
 /**
- * Publishes a component directly to NeoKanban UI/UX Studio entity (/api/boards/[id]/ui-components)
+ * Publishes a component directly to NeoKanban UI Studio entity (/api/boards/:id/ui-components)
  */
-export async function publishUiComponent(
+export async function publishComponentToUiStudio(
   filePath: string,
   options: { boardId?: string; apiUrl?: string; token?: string; category?: string; description?: string } = {}
 ): Promise<void> {
@@ -849,48 +973,73 @@ export async function publishUiComponent(
     throw new Error(`Component file not found at: ${fullPath}`);
   }
 
-  const rawContent = fs.readFileSync(fullPath, "utf-8");
-  const meta = parseComponentMetadata(rawContent, filePath);
-  if (options.category) meta.category = options.category.toUpperCase();
-  if (options.description) meta.description = options.description;
+  const content = fs.readFileSync(fullPath, "utf-8");
+
+  // 1. Ekstraksi otomatis metadata dari komentar HTML
+  const nameMatch = content.match(/<!--\s*name:\s*(.*?)\s*-->/i);
+  const catMatch = content.match(/<!--\s*category:\s*(.*?)\s*-->/i);
+  const descMatch = content.match(/<!--\s*description:\s*(.*?)\s*-->/i);
+  const name = nameMatch ? nameMatch[1].trim() : path.basename(filePath, ".html").replace(/^template-/, "");
+  const category = catMatch ? catMatch[1].trim() : (options.category || "General");
+  const description = descMatch ? descMatch[1].trim() : (options.description || undefined);
 
   const boardId = await resolveBoardId(options);
 
+  // 2. Kirim langsung ke endpoint UI Studio (/api/boards/:id/ui-components)
   try {
     const res = await kanbanApi<{ components?: any[] }>(`/api/boards/${boardId}/ui-components`, options);
-    const existing = res.components?.find((c: any) => c.name?.toLowerCase() === meta.name.toLowerCase());
+    const existing = res.components?.find((c: any) => c.name?.toLowerCase() === name.toLowerCase());
 
     if (existing) {
       await kanbanApi<any>(`/api/boards/${boardId}/ui-components/${existing.id}`, {
         ...options,
         method: "PUT",
         body: {
-          name: meta.name,
-          category: meta.category,
-          description: meta.description,
-          htmlContent: meta.htmlContent,
+          name,
+          category,
+          description: description || null,
+          htmlContent: content,
         },
       });
-      console.log(`✅ Updated UI/UX Studio component "${meta.name}" [${meta.category}] on NeoKanban.`);
+      console.log(`✅ Updated UI Studio component "${name}" [${category}] on NeoKanban.`);
     } else {
       await kanbanApi<any>(`/api/boards/${boardId}/ui-components`, {
         ...options,
         method: "POST",
         body: {
-          name: meta.name,
-          category: meta.category,
-          description: meta.description,
-          htmlContent: meta.htmlContent,
+          name,
+          category,
+          description,
+          htmlContent: content,
           order: 0,
         },
       });
-      console.log(`✅ Created new UI/UX Studio component "${meta.name}" [${meta.category}] on NeoKanban.`);
+      console.log(`✅ Published UI Studio component "${name}" [${category}] to NeoKanban.`);
     }
   } catch (err: any) {
-    console.log(`⚠️ UI/UX Studio API sync skipped (${err.message || "Endpoint not reachable"}). Fallback to context document publishing.`);
-    await publishComponent(filePath, options);
+    // Direct POST fallback if listing/PUT failed
+    try {
+      await kanbanApi<any>(`/api/boards/${boardId}/ui-components`, {
+        ...options,
+        method: "POST",
+        body: {
+          name,
+          category,
+          description,
+          htmlContent: content,
+          order: 0,
+        },
+      });
+      console.log(`✅ Published UI Studio component "${name}" [${category}] to NeoKanban.`);
+    } catch (postErr: any) {
+      console.error(`❌ Failed to publish component "${name}" to UI Studio: ${postErr.message || postErr}`);
+      throw postErr;
+    }
   }
 }
+
+export const publishComponent = publishComponentToUiStudio;
+export const publishUiComponent = publishComponentToUiStudio;
 
 /**
  * Pulls all UI components from NeoKanban UI/UX Studio into docs/ui-governance/components/
@@ -917,9 +1066,8 @@ export async function pullUiComponents(
       const fileName = `template-${cleanSlug}.html`;
       const filePath = path.join(targetDir, fileName);
 
-      const header = `<!-- name: ${comp.name} -->\n<!-- category: ${comp.category || "GENERAL"} -->\n${
-        comp.description ? `<!-- description: ${comp.description} -->\n` : ""
-      }\n`;
+      const header = `<!-- name: ${comp.name} -->\n<!-- category: ${comp.category || "GENERAL"} -->\n${comp.description ? `<!-- description: ${comp.description} -->\n` : ""
+        }\n`;
       fs.writeFileSync(filePath, `${header}${comp.htmlContent || ""}`, "utf-8");
       console.log(`  💾 Saved: ${fileName}`);
     }
@@ -934,7 +1082,7 @@ export async function pullUiComponents(
  */
 export async function pushUiPage(
   filePath: string,
-  options: { boardId?: string; apiUrl?: string; token?: string; title?: string; routePath?: string; category?: string } = {}
+  options: { boardId?: string; apiUrl?: string; token?: string; title?: string; routePath?: string; category?: string; description?: string } = {}
 ): Promise<void> {
   const fullPath = path.resolve(process.cwd(), filePath);
   if (!fs.existsSync(fullPath)) {
@@ -943,9 +1091,21 @@ export async function pushUiPage(
 
   const rawContent = fs.readFileSync(fullPath, "utf-8");
   const baseName = path.basename(filePath, ".html");
-  const title = options.title || baseName.replace(/[-_]+/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase());
-  const routePath = options.routePath || `/${baseName.toLowerCase().replace(/[^a-z0-9_-]/g, "-")}`;
-  const category = options.category || "GENERAL";
+
+  // Ekstraksi metadata otomatis dari komentar HTML
+  const titleMatch = rawContent.match(/<!--\s*(?:title|name):\s*(.*?)\s*-->/i);
+  const catMatch = rawContent.match(/<!--\s*category:\s*(.*?)\s*-->/i);
+  const pathMatch = rawContent.match(/<!--\s*(?:path|route):\s*(.*?)\s*-->/i);
+  const descMatch = rawContent.match(/<!--\s*description:\s*(.*?)\s*-->/i);
+
+  const cleanSlug = baseName
+    .replace(/^template-(?:dashboard|page)-/, "")
+    .replace(/^template-/, "");
+
+  const title = options.title || (titleMatch ? titleMatch[1].trim() : cleanSlug.replace(/[-_]+/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase()));
+  const routePath = options.routePath || (pathMatch ? pathMatch[1].trim() : `/${cleanSlug.toLowerCase().replace(/[^a-z0-9_-]/g, "-")}`);
+  const category = options.category || (catMatch ? catMatch[1].trim() : "GENERAL");
+  const description = options.description || (descMatch ? descMatch[1].trim() : undefined);
   const boardId = await resolveBoardId(options);
 
   try {
@@ -956,20 +1116,87 @@ export async function pushUiPage(
       await kanbanApi<any>(`/api/boards/${boardId}/ui-pages/${existing.id}`, {
         ...options,
         method: "PUT",
-        body: { title, path: routePath, category, htmlContent: rawContent },
+        body: { title, path: routePath, category, description: description || null, htmlContent: rawContent },
       });
       console.log(`✅ Updated UI/UX Studio Page "${title}" (${routePath}) on NeoKanban.`);
     } else {
       await kanbanApi<any>(`/api/boards/${boardId}/ui-pages`, {
         ...options,
         method: "POST",
-        body: { title, path: routePath, category, htmlContent: rawContent, order: 0 },
+        body: { title, path: routePath, category, description, htmlContent: rawContent, order: 0 },
       });
       console.log(`✅ Created new UI/UX Studio Page "${title}" (${routePath}) on NeoKanban.`);
     }
   } catch (err: any) {
-    console.error(`❌ Failed to push UI page: ${err.message || err}`);
+    try {
+      await kanbanApi<any>(`/api/boards/${boardId}/ui-pages`, {
+        ...options,
+        method: "POST",
+        body: { title, path: routePath, category, description, htmlContent: rawContent, order: 0 },
+      });
+      console.log(`✅ Created new UI/UX Studio Page "${title}" (${routePath}) on NeoKanban.`);
+    } catch (postErr: any) {
+      console.error(`❌ Failed to push UI page "${title}": ${postErr.message || postErr}`);
+      throw postErr;
+    }
   }
+}
+
+/**
+ * Bulk syncs all UI templates in docs/ui-governance/components/ to NeoKanban UI Studio
+ * - Files starting with template-dashboard-*.html or template-page-*.html -> /api/boards/:id/ui-pages (Peta)
+ * - Other component files -> /api/boards/:id/ui-components (Komponen)
+ */
+export async function syncUiGovernance(
+  options: { boardId?: string; apiUrl?: string; token?: string; targetDir?: string } = {}
+): Promise<{ pagesSynced: number; componentsSynced: number }> {
+  const boardId = await resolveBoardId(options);
+  const targetDir = path.resolve(process.cwd(), options.targetDir || "docs/ui-governance/components");
+
+  if (!fs.existsSync(targetDir)) {
+    console.log(`⚠️ UI Governance components directory not found at: ${targetDir}`);
+    return { pagesSynced: 0, componentsSynced: 0 };
+  }
+
+  const files = fs.readdirSync(targetDir)
+    .filter((f) => f.endsWith(".html") && !f.startsWith("."));
+
+  if (files.length === 0) {
+    console.log(`ℹ️ No HTML template files found in ${targetDir}`);
+    return { pagesSynced: 0, componentsSynced: 0 };
+  }
+
+  console.log(`\n🔄 Starting bulk UI Studio sync for board [${boardId}]...`);
+  console.log(`📂 Scanning: ${targetDir} (${files.length} HTML files found)\n`);
+
+  let pagesSynced = 0;
+  let componentsSynced = 0;
+
+  for (const file of files) {
+    const filePath = path.join(targetDir, file);
+    const isPage = file.startsWith("template-dashboard-") || file.startsWith("template-page-");
+
+    if (isPage) {
+      try {
+        console.log(`🗺️ [Page] Syncing "${file}" to UI Pages (/api/boards/:id/ui-pages)...`);
+        await pushUiPage(filePath, { ...options, boardId });
+        pagesSynced++;
+      } catch (err: any) {
+        console.error(`❌ Error syncing page ${file}: ${err.message || err}`);
+      }
+    } else {
+      try {
+        console.log(`🧩 [Component] Syncing "${file}" to UI Components (/api/boards/:id/ui-components)...`);
+        await publishComponentToUiStudio(filePath, { ...options, boardId });
+        componentsSynced++;
+      } catch (err: any) {
+        console.error(`❌ Error syncing component ${file}: ${err.message || err}`);
+      }
+    }
+  }
+
+  console.log(`\n✨ UI Studio sync completed: ${pagesSynced} page(s) and ${componentsSynced} component(s) synchronized.\n`);
+  return { pagesSynced, componentsSynced };
 }
 
 /**
@@ -1159,59 +1386,6 @@ export function resetTemplate(options: { full?: boolean } = {}): void {
   console.log("✅ Repository is now a pristine starter template ready to be copied or initialized!\n");
 }
 
-/**
- * Publishes reviewed and approved component template to NeoKanban board context
- */
-export async function publishComponent(
-  filePath: string,
-  options: { boardId?: string; apiUrl?: string; token?: string } = {}
-): Promise<void> {
-  const fullPath = path.resolve(process.cwd(), filePath);
-  if (!fs.existsSync(fullPath)) {
-    throw new Error(`Component file not found at: ${fullPath}`);
-  }
-
-  const baseName = path.basename(filePath);
-  const cleanName = baseName
-    .toLowerCase()
-    .replace(/^template-/, "")
-    .replace(/\.html$/, "")
-    .replace(/[^a-z0-9_-]/g, "-");
-  const fileName = `template-${cleanName}.html`;
-  const content = fs.readFileSync(fullPath, "utf-8");
-
-  try {
-    const boardId = await resolveBoardId(options);
-    const contextRes = await kanbanApi<any>(`/api/boards/${boardId}/context`, options);
-    const docs: any[] = contextRes.documents || [];
-    const existing = docs.find((d) => d.fileName?.toLowerCase() === fileName.toLowerCase());
-
-    if (existing) {
-      await kanbanApi<any>(`/api/boards/${boardId}/context/${existing.id}`, {
-        ...options,
-        method: "PUT",
-        body: {
-          title: `Component: ${cleanName}`,
-          content,
-        },
-      });
-      console.log(`✅ Updated existing component template "${fileName}" on NeoKanban.`);
-    } else {
-      await kanbanApi<any>(`/api/boards/${boardId}/context`, {
-        ...options,
-        method: "POST",
-        body: {
-          title: `Component: ${cleanName}`,
-          fileName,
-          content,
-        },
-      });
-      console.log(`✅ Published new component template "${fileName}" to NeoKanban.`);
-    }
-  } catch (err: any) {
-    console.log(`⚠️ NeoKanban sync skipped (${err.message || "Server not reachable"}). Template file is safely saved locally at: ${filePath}`);
-  }
-}
 
 /**
  * Checks completeness of local and remote context documents
@@ -1793,7 +1967,7 @@ export async function publishPlan(
       nextSteps: ["Mulai pengerjaan Task 1 di branch fitur terisolasi."],
       ...options,
     });
-  } catch (err: any) {}
+  } catch (err: any) { }
 
   return ledger;
 }
@@ -1814,7 +1988,7 @@ export async function startTask(
       nextSteps: ["Jalankan siklus TDD (Red -> Green -> Refactor) untuk task ini."],
       ...options,
     });
-  } catch (err: any) {}
+  } catch (err: any) { }
 }
 
 /**
@@ -1868,7 +2042,7 @@ export function runPreFlightTests(options: { preflightCmd?: string; skipPrefligh
         if (pkg.scripts && pkg.scripts.test && !pkg.scripts.test.includes("no test specified")) {
           cmd = "npm test";
         }
-      } catch {}
+      } catch { }
     }
   }
 
@@ -1943,7 +2117,7 @@ export async function reviewTask(
       nextSteps: ["Menunggu verifikasi dan persetujuan human developer untuk merge ke branch utama."],
       ...options,
     });
-  } catch (err: any) {}
+  } catch (err: any) { }
 }
 
 /**
@@ -1965,7 +2139,7 @@ async function transitionToColumn(
         }
       }
       fs.writeFileSync(mapPath, JSON.stringify(map, null, 2), "utf-8");
-    } catch {}
+    } catch { }
   }
 
   try {
@@ -2094,12 +2268,14 @@ if (isMain) {
         process.exit(1);
       }
       await checkComponent(arg1, { boardId: arg2 });
+    } else if (command === "ui:sync" || command === "studio:sync") {
+      await syncUiGovernance({ boardId: arg1 });
     } else if (command === "component:publish" || command === "studio:component:push") {
       if (!arg1) {
         console.error("Usage: kanban component:publish <path-to-template.html> [boardId]");
         process.exit(1);
       }
-      await publishUiComponent(arg1, { boardId: arg2 });
+      await publishComponentToUiStudio(arg1, { boardId: arg2 });
     } else if (command === "component:pull" || command === "studio:component:pull") {
       await pullUiComponents({ boardId: arg1 });
     } else if (command === "page:push" || command === "studio:page:push") {
@@ -2149,12 +2325,15 @@ if (isMain) {
       await pushContext({ boardId: arg1 });
     } else if (command === "context:pull") {
       await pullContext({ boardId: arg1 });
+    } else if (command === "mcp:setup" || command === "mcp:config" || command === "mcp:install") {
+      await setupMcpConfig({ targetDir: arg1 });
     } else if (command === "security:audit" || command === "audit") {
       runSecurityAudit();
     } else {
       console.log("\n⚡ Lean NeoKanban Sync CLI");
       console.log("Commands:");
       console.log("  init [--stack <type>] [--board]  First-time project setup (monorepo/unified/backend/frontend)");
+      console.log("  mcp:setup                        Auto-configure IDE (Antigravity/Cursor/Claude) with 32 MCP tools");
       console.log("  bundle                           Compile harness into dist/harness-bundle.json for MCP");
       console.log("  ping                             Ping / healthcheck NeoKanban server");
       console.log("  publish <planPath> [boardId]     Publish plan tasks to 'To Do' column");
@@ -2169,8 +2348,9 @@ if (isMain) {
       console.log("  tokens:check [boardId]           Check if token-design.json exists on board");
       console.log("  tokens:pull [boardId]            Pull token-design.json to local directory");
       console.log("  tokens:push [path] [boardId]     Upload token-design.json to NeoKanban");
-      console.log("  component:publish <file> [board] Publish template to NeoKanban UI/UX Studio");
-      console.log("  component:pull [boardId]         Pull UI components from NeoKanban UI/UX Studio");
+      console.log("  ui:sync [boardId]                Bulk sync all components and pages in docs/ui-governance/components/ to UI Studio");
+      console.log("  component:publish <file> [board] Publish template to NeoKanban UI Studio");
+      console.log("  component:pull [boardId]         Pull UI components from NeoKanban UI Studio");
       console.log("  page:push <file> [boardId]       Publish HTML page prototype to UI/UX Studio");
       console.log("  page:pull [boardId]              Pull HTML page prototypes from UI/UX Studio");
       console.log("  ui:annotations [boardId]         Fetch visual review pins & annotations from UI Studio");
